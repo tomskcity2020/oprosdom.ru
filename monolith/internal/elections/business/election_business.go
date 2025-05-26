@@ -1,7 +1,7 @@
-package models
+package elections
 
 type Candidate struct {
-	Member
+	//Member
 	role           string // house_manager / money_manager
 	about          string
 	program        string

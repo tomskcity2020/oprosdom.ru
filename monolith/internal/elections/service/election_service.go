@@ -1,4 +1,4 @@
-package service
+package elections
 
 type Election_service struct{}
 
