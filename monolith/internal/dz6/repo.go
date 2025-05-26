@@ -1,22 +1,28 @@
 package dz6
 
+import "errors"
+
+var members []Member
+var kvartirs []Kvartira
+
 type ToSliceInterface interface {
-	ToSlice() (interface{}, error)
+	ToSlice()
 }
 
-func (obj *Member) ToSlice() (interface{}, error) {
+func (obj *Member) ToSlice()   {}
+func (obj *Kvartira) ToSlice() {}
 
-	slice := []Member{*obj}
+func ToSlice(m ToSliceInterface) (interface{}, error) {
 
-	// слайс создается внутри функции поэтому передаем не указатель
-	return slice, nil
-
-}
-
-func (obj *Kvartira) ToSlice() (interface{}, error) {
-
-	slice := []Kvartira{*obj}
-
-	return slice, nil
+	switch getType := m.(type) {
+	case *Member:
+		members = append(members, *getType)
+		return &members, nil
+	case *Kvartira:
+		kvartirs = append(kvartirs, *getType)
+		return &kvartirs, nil
+	default:
+		return nil, errors.New("incorrect type")
+	}
 
 }

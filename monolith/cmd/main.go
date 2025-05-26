@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -13,32 +14,29 @@ import (
 )
 
 func dz6run() {
+
 	models := []string{"member", "kvartira"}
 
 	x := 0
 	for {
 
-		for i := 0; i <= 1; i++ {
+		source := rand.NewSource(time.Now().UnixNano())
+		generator := rand.New(source)
+		randomNum := generator.Intn(len(models))
+		//fmt.Println(randomNum)
 
-			modelStruct, err := dz6.CreateModel(models[i])
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			result, err := modelStruct.ToSlice()
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			fmt.Printf("%+v", result)
-			fmt.Println()
-
-			time.Sleep(1 * time.Second)
-
+		result, err := dz6.CreateModel(models[randomNum])
+		if err != nil {
+			fmt.Println(err)
 		}
 
+		fmt.Printf("%+v", result)
+		fmt.Println()
+
+		time.Sleep(2 * time.Second)
+
 		x++
-		if x > 3 {
+		if x > 9 {
 			break
 		}
 	}
