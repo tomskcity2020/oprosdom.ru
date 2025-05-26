@@ -1,4 +1,4 @@
-package models
+package fundrising
 
 type Kazna struct {
 	balance float64
