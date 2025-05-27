@@ -1,15 +1,55 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	core "oprosdom.ru/monolith/internal"
+	"oprosdom.ru/monolith/internal/dz6"
 )
 
+func dz6run() {
+
+	models := []string{"member", "kvartira"}
+
+	x := 0
+	for {
+
+		source := rand.NewSource(time.Now().UnixNano())
+		generator := rand.New(source)
+		randomNum := generator.Intn(len(models))
+		//fmt.Println(randomNum)
+
+		result, err := dz6.CreateModel(models[randomNum])
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Printf("%+v", result)
+		fmt.Println()
+
+		time.Sleep(2 * time.Second)
+
+		x++
+		if x > 9 {
+			break
+		}
+	}
+
+}
+
 func main() {
+
+	// запускаем домашку в отдельной горутине
+	// делаем слайс типов, которые будем рандомом передавать с помощью первой функции во вторую
+	// запускаем это в бесконечном цикле со слипом в 1 секунду
+
+	go dz6run()
 
 	// 	Вкратце схема такая:
 	// 1) вызываем rpc обработчик общий
