@@ -1,18 +1,20 @@
 package repo_internal
 
 import (
+	"log"
+
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
 
 type RepositoryStruct struct {
-	members   []models.ModelInterface
-	kvartiras []models.ModelInterface
+	members   []*models.Member
+	kvartiras []*models.Kvartira
 }
 
 func NewCallInternalRepo() *RepositoryStruct {
 	return &RepositoryStruct{
-		members:   make([]models.ModelInterface, 0),
-		kvartiras: make([]models.ModelInterface, 0),
+		members:   make([]*models.Member, 0),
+		kvartiras: make([]*models.Kvartira, 0),
 	}
 }
 
@@ -21,9 +23,18 @@ func (repo *RepositoryStruct) Save(m models.ModelInterface) {
 	//fmt.Println("in save now")
 	switch m.Type() {
 	case "member":
-		repo.members = append(repo.members, m)
+		if member, ok := m.(*models.Member); ok {
+			repo.members = append(repo.members, member)
+		} else {
+			log.Println("Проблема с приведением к типу Member")
+		}
+
 	case "kvartira":
-		repo.kvartiras = append(repo.kvartiras, m)
+		if kvartira, ok := m.(*models.Kvartira); ok {
+			repo.kvartiras = append(repo.kvartiras, kvartira)
+		} else {
+			log.Println("Проблема с приведением к типу Kvartira")
+		}
 	}
 }
 
