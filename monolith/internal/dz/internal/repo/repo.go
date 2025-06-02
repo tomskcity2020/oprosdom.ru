@@ -6,7 +6,8 @@ import (
 )
 
 type RepositoryInterface interface {
-	Save(m models.ModelInterface)
+	Save(ch <-chan models.ModelInterface)
+	Check()
 	Show(t string) int
 }
 
