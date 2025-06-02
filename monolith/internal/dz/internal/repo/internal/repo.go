@@ -1,7 +1,7 @@
 package repo_internal
 
 import (
-	"oprosdom.ru/monolith/internal/dz6/internal/models"
+	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
 
 type RepositoryStruct struct {

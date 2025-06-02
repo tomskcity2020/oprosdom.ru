@@ -1,7 +1,7 @@
 package models
 
 import (
-	models_internal "oprosdom.ru/monolith/internal/dz6/internal/models/internal"
+	models_internal "oprosdom.ru/monolith/internal/dz/internal/models/internal"
 )
 
 type ModelInterface interface {

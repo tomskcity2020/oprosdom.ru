@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"oprosdom.ru/monolith/internal/dz6/internal/models"
-	"oprosdom.ru/monolith/internal/dz6/internal/repo"
+	"oprosdom.ru/monolith/internal/dz/internal/models"
+	"oprosdom.ru/monolith/internal/dz/internal/repo"
 )
 
 type ServiceStruct struct {
@@ -35,6 +35,7 @@ func (obj *ServiceStruct) Run() {
 	totalElements := len(models)
 
 	for i, model := range models {
+		// передаем адрес в памяти чтоб не создавать копию
 		obj.repo.Save(model)
 		time.Sleep(2 * time.Second)
 		fmt.Printf("Обработано: %v из %v", i+1, totalElements)

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"oprosdom.ru/monolith/internal/dz6/internal/service"
+	"oprosdom.ru/monolith/internal/dz/internal/service"
 )
 
 func main() {

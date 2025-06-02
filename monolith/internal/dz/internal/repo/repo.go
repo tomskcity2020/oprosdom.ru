@@ -1,8 +1,8 @@
 package repo
 
 import (
-	"oprosdom.ru/monolith/internal/dz6/internal/models"
-	repo_internal "oprosdom.ru/monolith/internal/dz6/internal/repo/internal"
+	"oprosdom.ru/monolith/internal/dz/internal/models"
+	repo_internal "oprosdom.ru/monolith/internal/dz/internal/repo/internal"
 )
 
 type RepositoryInterface interface {
