@@ -6,7 +6,8 @@ import (
 
 func main() {
 
-	service := service.NewServiceFactory()
-	service.Run()
+	serviceEntity := service.NewServiceFactory()
+
+	serviceEntity.Run()
 
 }

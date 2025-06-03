@@ -7,8 +7,8 @@ import (
 
 type RepositoryInterface interface {
 	Save(m models.ModelInterface)
-	Check()
-	Show(t string) int
+	GetSliceMembers() []*models.Member
+	GetSliceKvartiras() []*models.Kvartira
 }
 
 func NewRepoFactory() RepositoryInterface {
