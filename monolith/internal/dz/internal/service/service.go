@@ -1,8 +1,8 @@
 package service
 
 import (
-	"oprosdom.ru/monolith/internal/dz6/internal/repo"
-	service_internal "oprosdom.ru/monolith/internal/dz6/internal/service/internal"
+	"oprosdom.ru/monolith/internal/dz/internal/repo"
+	service_internal "oprosdom.ru/monolith/internal/dz/internal/service/internal"
 )
 
 type ServiceInterface interface {
