@@ -18,6 +18,9 @@ func NewCallInternalService(repo repo.RepositoryInterface) *ServiceStruct {
 	}
 }
 
+// основной принцип сервисного пакета: берем данные из репо, перекидываем в бизнес-логику, полученный результат сохраняем в репо.
+// TEST проверить удобно ли будет работать с горутинами в сервисном слое, чтоб не загромождать бизнес-слой, или нужно делать доп уровень абстракции
+
 func (obj *ServiceStruct) Run() {
 
 	// сначала запускаем функцию проверки слайсов каждые 200 мс
@@ -26,6 +29,7 @@ func (obj *ServiceStruct) Run() {
 	// хз почему, нужно разобраться: когда создаю канал после models:=[]models, то ругается на ModelInterface (не видит пакет models). Поэтому задаем создаем новый тип тут, который используем ниже
 	//ch := make(chan models.ModelInterface)
 	type ModelChannel chan models.ModelInterface
+	type modelsModelInterface models.ModelInterface // еще один костыль, потому что ниже []models.ModelInterface не видит пакет
 
 	fmt.Println("Сервис запущен. Пожалуйста, ожидайте..")
 
@@ -64,8 +68,23 @@ func (obj *ServiceStruct) Run() {
 	wg.Wait() // важно!! сначала дожидаемся записи в канал, только потом его закрываем. Если наоборот - будет паника
 	close(ch)
 
-	// обработка запись в слайсы из канала
-	obj.repo.Save(ch)
+	// ================== REPO SAVE()
+
+	wgSave := sync.WaitGroup{}
+
+	for m := range ch {
+
+		wgSave.Add(1)
+
+		// несмотря на то, что канал у нас закрыт (данные в нем изменяться не будут и также учитывая что тут <-readonly) все равно передаем m аргументом, на всякий случай для доп проверки, потому что так рекомендуют
+		go func(model modelsModelInterface) {
+			defer wgSave.Done()
+			obj.repo.Save(model)
+		}(m)
+
+	}
+
+	wg.Wait()
 
 	showMembers := obj.repo.Show("member")
 	fmt.Printf("Всего участников: %v", showMembers)

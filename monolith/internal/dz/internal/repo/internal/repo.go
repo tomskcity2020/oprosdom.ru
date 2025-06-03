@@ -1,7 +1,6 @@
 package repo_internal
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -21,55 +20,38 @@ func NewCallInternalRepo() *RepositoryStruct {
 	}
 }
 
-func (repo *RepositoryStruct) Save(ch <-chan models.ModelInterface) {
+// func (repo *RepositoryStruct) Save(ch <-chan models.ModelInterface) {
+func (repo *RepositoryStruct) Save(m models.ModelInterface) {
 
-	// здесь нужно распараллелить чтение из канала
-	// первым делом сделать WaitGroup -> add -> done (есть нюансы если defer done в начале функции объявляем) -> wait
-	// обязательно используем мьютекс так как будет осущ запись в слайсы из разных горутин
+	// сюда передаем только интерфейс
+	// убираем в сервисный слой вызов горутин
+	// здесь оставляем только приведение к типам и запись в слайсы
+	// но мьютексы оставляем здесь, так как писать будем в слайсы из нескольких горутин (которые будем вызывать в сервисном слое)
 
 	muMembers := sync.Mutex{}
 	muKvartiras := sync.Mutex{}
 
-	wg := sync.WaitGroup{}
+	switch m.Type() {
+	case "member":
+		if member, ok := m.(*models.Member); ok {
+			muMembers.Lock()
+			repo.members = append(repo.members, member)
+			muMembers.Unlock()
+		} else {
+			log.Println("Проблема с приведением к типу Member")
+		}
 
-	for m := range ch {
-
-		wg.Add(1)
-
-		// несмотря на то, что канал у нас закрыт (данные в нем изменяться не будут и также учитывая что тут <-readonly) все равно передаем m аргументом, на всякий случай для доп проверки, потому что так рекомендуют
-		go func(model models.ModelInterface) {
-
-			defer wg.Done()
-
-			fmt.Println("in repo goroutine save now")
-			fmt.Printf("%+v\n", model)
-			switch model.Type() {
-			case "member":
-				if member, ok := model.(*models.Member); ok {
-					muMembers.Lock()
-					repo.members = append(repo.members, member)
-					muMembers.Unlock()
-				} else {
-					log.Println("Проблема с приведением к типу Member")
-				}
-
-			case "kvartira":
-				if kvartira, ok := model.(*models.Kvartira); ok {
-					muKvartiras.Lock()
-					repo.kvartiras = append(repo.kvartiras, kvartira)
-					muKvartiras.Unlock()
-				} else {
-					log.Println("Проблема с приведением к типу Kvartira")
-				}
-			default:
-				log.Println("Неведомый тип")
-			}
-
-		}(m)
-
+	case "kvartira":
+		if kvartira, ok := m.(*models.Kvartira); ok {
+			muKvartiras.Lock()
+			repo.kvartiras = append(repo.kvartiras, kvartira)
+			muKvartiras.Unlock()
+		} else {
+			log.Println("Проблема с приведением к типу Kvartira")
+		}
+	default:
+		log.Println("Неведомый тип")
 	}
-
-	wg.Wait()
 
 }
 
