@@ -20,105 +20,65 @@ func NewCallInternalService(repo repo.RepositoryInterface) *ServiceStruct {
 	}
 }
 
-// основной принцип сервисного пакета: берем данные из репо, перекидываем в бизнес-логику, полученный результат сохраняем в репо.
-// TEST проверить удобно ли будет работать с горутинами в сервисном слое, чтоб не загромождать бизнес-слой, или нужно делать доп уровень абстракции
+// основной принцип сервисного пакета: берем данные извне или из репо, перекидываем в бизнес-логику, полученный результат сохраняем в репо или отдаем вовне
 
-func (obj *ServiceStruct) Run() {
+func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 
-	// сначала запускаем в отдельной горутине функцию проверки слайсов каждые 200 мс
-	// TODO нужно вынести в пакет businesslogic бизнес-логику, здесь оставить только код в соответствии с принципом сервисного пакета
+	// чтобы гарантировать корректную работу функции в методе CheckSlices нужно стартануть его ДО запуска кода где вставляются данные в слайс
+	// иначе может быть не пустой слайс когда начнет исполняться CheckSlices и повлияет на корректный вывод изменений слайса
+
+	wgCheck := sync.WaitGroup{}
+	wgCheck.Add(1)
 	go func() {
-		// узнавать количество структур в каждом слайсе на старте (однозначно там по 0)
-		prevMembersCount := len(obj.repo.GetSliceMembers())
-		prevKvartirasCount := len(obj.repo.GetSliceKvartiras())
+		wgCheck.Done() // defer тут не юзаем иначе CheckSlices будем ждать бесконечно
+		obj.CheckSlices()
+	}()
+	wgCheck.Wait() // ждем когда горутина с CheckSlices стартанет
 
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop() // обязательно освобождаем ресурсы, сработает когда основная горутина завершится
+	ch := make(chan models.ModelInterface, 5)
 
-		for range ticker.C {
+	// СТАРТУЕМ ЧИТАТЕЛЕЙ
+	wgRead := sync.WaitGroup{}
 
-			// узнавать количество структур в каждом слайсе каждые 200 мс
+	// если цикл чтения запущен до того как появился хотя бы один элемент в канале, он будет ожидать поступления данных, а не завершится сразу
+	go func() { // запускаем в отдельной горутине чтоб не заблокировать основную горутину иначе словим deadlock так как, эта горутина переходит в состояние ожидания
+		for m := range ch {
 
-			nowMembers := obj.repo.GetSliceMembers()
-			nowKvartiras := obj.repo.GetSliceKvartiras()
+			wgRead.Add(1)
 
-			nowMembersCount := len(nowMembers)
-			nowKvartirasCount := len(nowKvartiras)
-
-			if nowMembersCount > prevMembersCount {
-				newMembers := nowMembers[prevMembersCount:] // все новые это те, индекс которых идет следом за prevMembersCount
-				for _, member := range newMembers {
-					log.Printf("New value in Members: %+v ", member)
-				}
-				prevMembersCount = nowMembersCount
-			}
-
-			if nowKvartirasCount > prevKvartirasCount {
-				newKvartiras := nowKvartiras[prevKvartirasCount:]
-				for _, kvartira := range newKvartiras {
-					log.Printf("New value in Kvartiras: %+v ", kvartira)
-				}
-				prevKvartirasCount = nowKvartirasCount
-			}
+			go func(model models.ModelInterface) { // при появлении в канале записи стартуем новую горутину потому, что save(model) может занимать какое-то время (в теории), чтоб выполнять параллельно множество операций,а не последовательно
+				defer wgRead.Done()
+				//log.Printf("новая горутина-читатель в работе: %+v", model)
+				obj.repo.Save(model)
+			}(m)
 
 		}
 	}()
 
-	//fmt.Println("Сервис запущен. Пожалуйста, ожидайте..")
+	// СТАРТУЕМ ПИСАТЕЛЕЙ
+	// размер буф канала не должен быть равен количеству записываемых элементов в него: если буф канал = 5, то это значит что это буфер на 5 элементов, чем больше буфер, тем меньше блокировок будет. Но слишком большой буфер это RAM, поэтому нужно по ситуации смотреть
 
-	modelsData := []models.ModelInterface{
-		models.NewUserFactory("Namme", "+79991231234", 54),
-		models.NewUserFactory("Bobby", "+71000033214", 79),
-		models.NewKvartiraFactory("135b", 3),
-		models.NewUserFactory("Marry", "+72223342343", 91),
-		models.NewKvartiraFactory("179", 1),
-		models.NewKvartiraFactory("11a", 2),
-		models.NewUserFactory("Alex", "+71000032344", 51),
-	}
+	wgWrite := sync.WaitGroup{}
 
-	totalElements := len(modelsData)
-
-	ch := make(chan models.ModelInterface, totalElements)
-	wg := sync.WaitGroup{}
-
-	// ==================== 1. Запись структур в канал
 	for i, model := range modelsData {
 
-		wg.Add(1)
+		wgWrite.Add(1)
 
-		go func(rtn_num int, modelGoRtn models.ModelInterface) {
-			defer wg.Done() // а внутри Save делаем свою waitgroup и отслеживаем done на том уровне
-			fmt.Printf("стартанула %v горутина\n", rtn_num)
-			ch <- modelGoRtn // передаем model через аргумент на
+		go func(wn int, m models.ModelInterface) {
+			defer wgWrite.Done()
+			//fmt.Printf("Писатель №%v начал запись в канал\n", wn)
+			ch <- m
 		}(i+1, model)
 
-		fmt.Printf("Передано в горутины: %v структура из %v \n", i+1, totalElements)
-		// Println не юзаем потому, что это отдельная операция и при множестве горутин форматирование нарушается
+		// Println не юзаем потому, что это отдельная операция и при множестве горутин форматирование нарушается потому что они могут вклиниться перед Println
 		//fmt.Println()
 
 	}
-	wg.Wait() // важно!! сначала дожидаемся записи в канал, только потом его закрываем. Если наоборот - будет паника
-	close(ch)
 
-	// ================== 2. REPO SAVE()
+	wgWrite.Wait()
+	close(ch) // закрываем канал только после записи в него всех данных писателями
 
-	wgSave := sync.WaitGroup{}
-
-	for m := range ch {
-
-		wgSave.Add(1)
-
-		// несмотря на то, что канал у нас закрыт (данные в нем изменяться не будут и также учитывая что тут <-readonly) все равно передаем m аргументом, на всякий случай для доп проверки, потому что так рекомендуют
-		go func(model models.ModelInterface) {
-			defer wgSave.Done()
-			obj.repo.Save(model)
-		}(m)
-
-	}
-
-	wgSave.Wait()
-
-	// ================== END
+	wgRead.Wait() // ждем завершения работы читателей
 
 	showMembers := len(obj.repo.GetSliceMembers())
 	fmt.Printf("Всего участников: %v", showMembers)
@@ -128,4 +88,87 @@ func (obj *ServiceStruct) Run() {
 	fmt.Printf("Всего квартир: %v", showKvartiras)
 	fmt.Println()
 
+}
+
+func (obj *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
+	wgCheck := sync.WaitGroup{}
+	wgCheck.Add(1)
+	go func() {
+		wgCheck.Done() // defer тут не юзаем иначе CheckSlices будем ждать бесконечно
+		obj.CheckSlices()
+	}()
+	wgCheck.Wait() // ждем когда горутина с CheckSlices стартанет
+
+	ch := make(chan models.ModelInterface)
+
+	wgWrite := sync.WaitGroup{}
+	wgWrite.Add(1)
+	go func(md []models.ModelInterface) {
+		defer wgWrite.Done()
+		defer close(ch)
+		for _, m := range md {
+			ch <- m
+		}
+	}(modelsData)
+
+	wgRead := sync.WaitGroup{}
+	wgRead.Add(1)
+	go func() {
+		defer wgRead.Done()
+		for m := range ch {
+			obj.repo.Save(m)
+		}
+	}()
+
+	wgWrite.Wait()
+	wgRead.Wait()
+
+	showMembers := len(obj.repo.GetSliceMembers())
+	fmt.Printf("Всего участников: %v", showMembers)
+	fmt.Println()
+
+	showKvartiras := len(obj.repo.GetSliceKvartiras())
+	fmt.Printf("Всего квартир: %v", showKvartiras)
+	fmt.Println()
+
+}
+
+func (obj *ServiceStruct) CheckSlices() {
+	//fmt.Println("check starts")
+	// узнавать количество структур в каждом слайсе на старте (относительно там должен быть 0 - если эта горутина стартанет раньше других)
+	prevMembersCount := len(obj.repo.GetSliceMembers())
+	prevKvartirasCount := len(obj.repo.GetSliceKvartiras())
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop() // обязательно освобождаем ресурсы, сработает когда основная горутина завершится
+
+	//log.Println("test1")
+
+	for range ticker.C {
+
+		// узнавать количество структур в каждом слайсе каждые 200 мс
+
+		nowMembers := obj.repo.GetSliceMembers()
+		nowKvartiras := obj.repo.GetSliceKvartiras()
+
+		nowMembersCount := len(nowMembers)
+		nowKvartirasCount := len(nowKvartiras)
+
+		if nowMembersCount > prevMembersCount {
+			newMembers := nowMembers[prevMembersCount:] // все новые это те, индекс которых идет следом за prevMembersCount
+			for _, member := range newMembers {
+				log.Printf("New value in Members: %+v ", member)
+			}
+			prevMembersCount = nowMembersCount
+		}
+
+		if nowKvartirasCount > prevKvartirasCount {
+			newKvartiras := nowKvartiras[prevKvartirasCount:]
+			for _, kvartira := range newKvartiras {
+				log.Printf("New value in Kvartiras: %+v ", kvartira)
+			}
+			prevKvartirasCount = nowKvartirasCount
+		}
+
+	}
 }

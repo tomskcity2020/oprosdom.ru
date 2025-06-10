@@ -11,7 +11,7 @@ import (
 type RepositoryStruct struct {
 	members   []*models.Member
 	kvartiras []*models.Kvartira
-	// добавляем мьютекс в структуру для того, чтобы в каждом методе не создавать их - так они потеряют свой смысл. А так мы изначально создаем репо через конструктор и мьютексы используются во всех горутинах
+	// добавляем мьютекс в структуру для того, чтобы в каждом методе не создавать их - так они потеряют свой смысл (потому что параллельно запускаем репо). А так мы изначально создаем репо через конструктор и мьютексы используются во всех горутинах
 	muMembers   sync.RWMutex
 	muKvartiras sync.RWMutex
 }
@@ -24,24 +24,23 @@ func NewCallInternalRepo() *RepositoryStruct {
 	}
 }
 
-// func (repo *RepositoryStruct) Save(ch <-chan models.ModelInterface) {
 func (repo *RepositoryStruct) Save(m models.ModelInterface) {
 
 	//switch m.Type() {
 	switch data := m.(type) {
 	case *models.Member:
+		time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
 		repo.muMembers.Lock()
 		repo.members = append(repo.members, data)
 		repo.muMembers.Unlock()
-		log.Println("repo add members done")
-		time.Sleep(201 * time.Millisecond)
+		//log.Println("repo add members done")
 
 	case *models.Kvartira:
+		time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
 		repo.muKvartiras.Lock()
 		repo.kvartiras = append(repo.kvartiras, data)
 		repo.muKvartiras.Unlock()
-		log.Println("repo add kvartiras done")
-		time.Sleep(201 * time.Millisecond)
+		//log.Println("repo add kvartiras done")
 	default:
 		log.Println("Неведомый тип")
 	}
