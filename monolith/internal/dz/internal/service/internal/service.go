@@ -39,12 +39,11 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 
 	// СТАРТУЕМ ЧИТАТЕЛЕЙ
 	wgRead := sync.WaitGroup{}
+	wgRead.Add(len(modelsData))
 
 	// если цикл чтения запущен до того как появился хотя бы один элемент в канале, он будет ожидать поступления данных, а не завершится сразу
 	go func() { // запускаем в отдельной горутине чтоб не заблокировать основную горутину иначе словим deadlock так как, эта горутина переходит в состояние ожидания
 		for m := range ch {
-
-			wgRead.Add(1)
 
 			go func(model models.ModelInterface) { // при появлении в канале записи стартуем новую горутину потому, что save(model) может занимать какое-то время (в теории), чтоб выполнять параллельно множество операций,а не последовательно
 				defer wgRead.Done()
@@ -59,10 +58,9 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 	// размер буф канала не должен быть равен количеству записываемых элементов в него: если буф канал = 5, то это значит что это буфер на 5 элементов, чем больше буфер, тем меньше блокировок будет. Но слишком большой буфер это RAM, поэтому нужно по ситуации смотреть
 
 	wgWrite := sync.WaitGroup{}
+	wgWrite.Add(len(modelsData))
 
 	for i, model := range modelsData {
-
-		wgWrite.Add(1)
 
 		go func(wn int, m models.ModelInterface) {
 			defer wgWrite.Done()
@@ -122,6 +120,7 @@ func (obj *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
 
 	wgWrite.Wait()
 	wgRead.Wait()
+	// канал уже закрыт defer'ом в горутине записи
 
 	showMembers := len(obj.repo.GetSliceMembers())
 	fmt.Printf("Всего участников: %v", showMembers)

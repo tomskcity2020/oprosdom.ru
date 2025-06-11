@@ -3,7 +3,6 @@ package repo_internal
 import (
 	"log"
 	"sync"
-	"time"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
@@ -29,17 +28,17 @@ func (repo *RepositoryStruct) Save(m models.ModelInterface) {
 	//switch m.Type() {
 	switch data := m.(type) {
 	case *models.Member:
-		time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
+		//time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
 		repo.muMembers.Lock()
+		defer repo.muMembers.Unlock()
 		repo.members = append(repo.members, data)
-		repo.muMembers.Unlock()
 		//log.Println("repo add members done")
 
 	case *models.Kvartira:
-		time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
+		//time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
 		repo.muKvartiras.Lock()
+		defer repo.muKvartiras.Unlock()
 		repo.kvartiras = append(repo.kvartiras, data)
-		repo.muKvartiras.Unlock()
 		//log.Println("repo add kvartiras done")
 	default:
 		log.Println("Неведомый тип")
