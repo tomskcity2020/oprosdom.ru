@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -22,10 +23,13 @@ func main() {
 
 	serviceEntity := service.NewServiceFactory()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	startTime := time.Now()
 
-	//serviceEntity.RunParallel(modelsData)
-	serviceEntity.RunSeq(modelsData)
+	//serviceEntity.RunParallel(mainCtx, modelsData)
+	serviceEntity.RunSeq(ctx, modelsData)
 
 	elapsedTime := time.Since(startTime)
 	fmt.Printf("Функция Run завершилась за: %v\n", elapsedTime)
