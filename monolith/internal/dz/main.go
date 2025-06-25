@@ -20,7 +20,7 @@ func main() {
 		models.NewUserFactory("Alex", "+71000032344", 51),
 	}
 
-	//for i := 0; i < 10; i++ {
+	//for i := 0; i < 100; i++ {
 
 	serviceEntity := service.NewServiceFactory()
 
@@ -34,6 +34,6 @@ func main() {
 
 	time.Sleep(time.Second) // для демонстрации работы функции-чекера слайсов при RunParallel иначе все исполнится быстрее, чем вторая итерация чекера наступит
 
-	//}
-
 }
+
+//}
