@@ -22,18 +22,32 @@ func NewCallInternalService(repo repo.RepositoryInterface) *ServiceStruct {
 
 // основной принцип сервисного пакета: берем данные извне или из репо, перекидываем в бизнес-логику, полученный результат сохраняем в репо или отдаем вовне
 
+func (obj *ServiceStruct) CountData() {
+
+	obj.repo.LoadFromFile("members.json")
+	obj.repo.LoadFromFile("kvartiras.json")
+
+	showMembers := len(obj.repo.GetSliceMembers())
+	fmt.Printf("Всего участников: %v", showMembers)
+	fmt.Println()
+
+	showKvartiras := len(obj.repo.GetSliceKvartiras())
+	fmt.Printf("Всего квартир: %v", showKvartiras)
+	fmt.Println()
+}
+
 func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 
 	// чтобы гарантировать корректную работу функции в методе CheckSlices нужно стартануть его ДО запуска кода где вставляются данные в слайс
 	// иначе может быть не пустой слайс когда начнет исполняться CheckSlices и повлияет на корректный вывод изменений слайса
 
-	wgCheck := sync.WaitGroup{}
-	wgCheck.Add(1)
-	go func() {
-		wgCheck.Done() // defer тут не юзаем иначе CheckSlices будем ждать бесконечно
-		obj.CheckSlices()
-	}()
-	wgCheck.Wait() // ждем когда горутина с CheckSlices стартанет
+	// wgCheck := sync.WaitGroup{}
+	// wgCheck.Add(1)
+	// go func() {
+	// 	wgCheck.Done() // defer тут не юзаем иначе CheckSlices будем ждать бесконечно
+	// 	obj.CheckSlices()
+	// }()
+	// wgCheck.Wait() // ждем когда горутина с CheckSlices стартанет
 
 	ch := make(chan models.ModelInterface, 5)
 	//ch := make(chan models.ModelInterface)
@@ -41,6 +55,7 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 	// СТАРТУЕМ ЧИТАТЕЛЕЙ
 	wgRead := sync.WaitGroup{}
 	wgRead.Add(len(modelsData))
+	//log.Printf("len modelsData %+v", len(modelsData))
 
 	wgCheckGorutReadStarts := sync.WaitGroup{} // делаем войтгруппу для того, чтобы убедиться что горутина read стартанула раньше, чем начнется старт writer'ов
 	wgCheckGorutReadStarts.Add(1)
@@ -88,13 +103,14 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 
 	wgRead.Wait() // ждем завершения работы читателей
 
-	showMembers := len(obj.repo.GetSliceMembers())
-	fmt.Printf("Всего участников: %v", showMembers)
-	fmt.Println()
+	// теоретически у нас всегда будет >0, так как как минимум один экземпляр создастся интерактивно, но на всякий добавляем проверку
+	if obj.repo.MembersInSliceNow() > 0 {
+		obj.repo.SaveToFile("members.json")
+	}
 
-	showKvartiras := len(obj.repo.GetSliceKvartiras())
-	fmt.Printf("Всего квартир: %v", showKvartiras)
-	fmt.Println()
+	if obj.repo.KvartirasInSliceNow() > 0 {
+		obj.repo.SaveToFile("kvartiras.json")
+	}
 
 }
 
