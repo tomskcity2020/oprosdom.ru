@@ -1,7 +1,6 @@
 package service_internal
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -23,7 +22,7 @@ func NewCallInternalService(repo repo.RepositoryInterface) *ServiceStruct {
 
 // основной принцип сервисного пакета: берем данные извне или из репо, перекидываем в бизнес-логику, полученный результат сохраняем в репо или отдаем вовне
 
-func (obj *ServiceStruct) RunParallel(ctx context.Context, modelsData []models.ModelInterface) {
+func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 
 	// чтобы гарантировать корректную работу функции в методе CheckSlices нужно стартануть его ДО запуска кода где вставляются данные в слайс
 	// иначе может быть не пустой слайс когда начнет исполняться CheckSlices и повлияет на корректный вывод изменений слайса
@@ -99,7 +98,7 @@ func (obj *ServiceStruct) RunParallel(ctx context.Context, modelsData []models.M
 
 }
 
-func (obj *ServiceStruct) RunSeq(ctx context.Context, modelsData []models.ModelInterface) {
+func (obj *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
 	wgCheck := sync.WaitGroup{}
 	wgCheck.Add(1)
 	go func() {

@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
@@ -21,23 +24,31 @@ func main() {
 		models.NewUserFactory("Alex", "+71000032344", 51),
 	}
 
-	//for i := 0; i < 100; i++ {
+	// логика graceful shutdown у нас такая: дожидаемся записи в слайсы и прекращаем дальнейшее выполнение цикла, выходим. Потому что посреди записи в слайс нелогично делать graceful shutdown, потому что он таковым являться не будет ввиду того, что часть данных запишется в слайс, а часть возможно нет
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	serviceEntity := service.NewServiceFactory()
+	for {
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+		select {
+		case <-ctx.Done():
+			fmt.Println("Graceful Shutdown starts")
+			return
+		default:
+			serviceEntity := service.NewServiceFactory()
 
-	startTime := time.Now()
+			startTime := time.Now()
 
-	serviceEntity.RunParallel(modelsData)
-	//serviceEntity.RunSeq(modelsData)
+			serviceEntity.RunParallel(modelsData)
+			//serviceEntity.RunSeq(modelsData)
 
-	elapsedTime := time.Since(startTime)
-	fmt.Printf("Функция Run завершилась за: %v\n", elapsedTime)
+			time.Sleep(1 * time.Second) // имитация длит выполнения
 
-	time.Sleep(time.Second) // для демонстрации работы функции-чекера слайсов при RunParallel иначе все исполнится быстрее, чем вторая итерация чекера наступит
+			elapsedTime := time.Since(startTime)
+			fmt.Printf("Функция Run завершилась за: %v\n", elapsedTime)
+
+		}
+
+	}
 
 }
-
-//}
