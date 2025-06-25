@@ -21,6 +21,8 @@ func main() {
 		models.NewUserFactory("Alex", "+71000032344", 51),
 	}
 
+	//for i := 0; i < 100; i++ {
+
 	serviceEntity := service.NewServiceFactory()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -28,8 +30,8 @@ func main() {
 
 	startTime := time.Now()
 
-	//serviceEntity.RunParallel(mainCtx, modelsData)
-	serviceEntity.RunSeq(ctx, modelsData)
+	serviceEntity.RunParallel(modelsData)
+	//serviceEntity.RunSeq(modelsData)
 
 	elapsedTime := time.Since(startTime)
 	fmt.Printf("Функция Run завершилась за: %v\n", elapsedTime)
@@ -37,3 +39,5 @@ func main() {
 	time.Sleep(time.Second) // для демонстрации работы функции-чекера слайсов при RunParallel иначе все исполнится быстрее, чем вторая итерация чекера наступит
 
 }
+
+//}
