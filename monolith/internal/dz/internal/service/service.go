@@ -7,6 +7,7 @@ import (
 )
 
 type ServiceInterface interface {
+	CountData()
 	RunParallel(modelsData []models.ModelInterface)
 	RunSeq(modelsData []models.ModelInterface)
 }
