@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,20 +32,20 @@ func main() {
 
 		select {
 		case <-ctx.Done():
-			fmt.Println("Graceful Shutdown starts")
+			log.Println("GRACEFUL SHUTDOWN main")
 			return
 		default:
 			serviceEntity := service.NewServiceFactory()
 
 			startTime := time.Now()
 
-			serviceEntity.RunParallel(modelsData)
+			serviceEntity.RunParallel(ctx, modelsData)
 			//serviceEntity.RunSeq(modelsData)
 
 			time.Sleep(1 * time.Second) // имитация длит выполнения
 
 			elapsedTime := time.Since(startTime)
-			fmt.Printf("Функция Run завершилась за: %v\n", elapsedTime)
+			log.Printf("Функция Run завершилась за: %v\n", elapsedTime)
 
 		}
 
