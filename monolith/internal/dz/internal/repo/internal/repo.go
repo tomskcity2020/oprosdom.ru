@@ -1,8 +1,10 @@
 package repo_internal
 
 import (
+	"context"
 	"log"
 	"sync"
+	"time"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
@@ -23,25 +25,42 @@ func NewCallInternalRepo() *RepositoryStruct {
 	}
 }
 
-func (repo *RepositoryStruct) Save(m models.ModelInterface) {
+func (repo *RepositoryStruct) Save(saveCtx context.Context, m models.ModelInterface) {
 
-	//switch m.Type() {
-	switch data := m.(type) {
-	case *models.Member:
-		//time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
+	select {
+	case <-saveCtx.Done():
+		log.Println("saveCtx.Done закругляемся")
+		// откатываем изменения и сообщаем об инциденте
 		repo.muMembers.Lock()
-		defer repo.muMembers.Unlock()
-		repo.members = append(repo.members, data)
-		//log.Println("repo add members done")
+		repo.members = nil
+		repo.muMembers.Unlock()
 
-	case *models.Kvartira:
-		//time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
 		repo.muKvartiras.Lock()
-		defer repo.muKvartiras.Unlock()
-		repo.kvartiras = append(repo.kvartiras, data)
-		//log.Println("repo add kvartiras done")
+		repo.kvartiras = nil
+		repo.muKvartiras.Unlock()
+		log.Println("ИНЦИДЕНТ. Операция не выполнена. Повторите попытку")
+		log.Printf("участников: %+v", repo.members)
+		log.Printf("квартир: %+v", repo.kvartiras)
+
+		return
 	default:
-		log.Println("Неведомый тип")
+		switch data := m.(type) {
+		case *models.Member:
+			time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
+			repo.muMembers.Lock()
+			defer repo.muMembers.Unlock()
+			repo.members = append(repo.members, data)
+			log.Println("repo add members done")
+
+		case *models.Kvartira:
+			time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
+			repo.muKvartiras.Lock()
+			defer repo.muKvartiras.Unlock()
+			repo.kvartiras = append(repo.kvartiras, data)
+			log.Println("repo add kvartiras done")
+		default:
+			log.Println("Неведомый тип")
+		}
 	}
 
 }

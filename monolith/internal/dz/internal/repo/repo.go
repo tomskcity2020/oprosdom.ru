@@ -1,12 +1,14 @@
 package repo
 
 import (
+	"context"
+
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 	repo_internal "oprosdom.ru/monolith/internal/dz/internal/repo/internal"
 )
 
 type RepositoryInterface interface {
-	Save(m models.ModelInterface)
+	Save(saveCtx context.Context, m models.ModelInterface)
 	GetSliceMembers() []*models.Member
 	GetSliceKvartiras() []*models.Kvartira
 }
