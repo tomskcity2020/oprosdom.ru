@@ -2,6 +2,7 @@ package repo_internal
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"sync"
@@ -26,7 +27,7 @@ func NewCallInternalRepo() *RepositoryStruct {
 
 }
 
-func (repo *RepositoryStruct) Save(m models.ModelInterface) {
+func (repo *RepositoryStruct) Save(m models.ModelInterface) error {
 
 	//switch m.Type() {
 	switch data := m.(type) {
@@ -45,8 +46,10 @@ func (repo *RepositoryStruct) Save(m models.ModelInterface) {
 		repo.kvartiras = append(repo.kvartiras, data)
 		//log.Println("repo add kvartiras done")
 	default:
-		log.Println("Неведомый тип")
+		return errors.New("неведомый тип")
 	}
+
+	return nil
 
 }
 

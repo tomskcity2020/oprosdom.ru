@@ -22,7 +22,7 @@ func GetRepoSingleton() RepositoryInterface {
 }
 
 type RepositoryInterface interface {
-	Save(m models.ModelInterface)
+	Save(m models.ModelInterface) error
 	LoadFromFile(fileName string)
 	MembersInSliceNow() int
 	KvartirasInSliceNow() int

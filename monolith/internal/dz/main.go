@@ -22,6 +22,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/api/member", handlers.AddMember).Methods("POST")
 
 	srv := &http.Server{
 		Addr:    ":8080",
