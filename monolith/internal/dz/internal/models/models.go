@@ -13,9 +13,10 @@ func NewKvartiraFactory(number string, komnat int) ModelInterface {
 }
 
 type Member struct {
-	Name      string
-	Phone     string
-	Community int
+	Id        int    `json:"id"`
+	Name      string `json:"name"`
+	Phone     string `json:"phone"`
+	Community int    `json:"community"`
 }
 
 func (obj *Member) Type() string {

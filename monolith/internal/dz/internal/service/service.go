@@ -14,5 +14,6 @@ type ServiceInterface interface {
 
 // фабрика будет вызывать другой конструктор из internal service
 func NewServiceFactory() ServiceInterface {
-	return service_internal.NewCallInternalService(repo.NewRepoFactory())
+	//return service_internal.NewCallInternalService(repo.NewRepoFactory())
+	return service_internal.NewCallInternalService(repo.GetRepoSingleton())
 }
