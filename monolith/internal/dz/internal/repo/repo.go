@@ -26,7 +26,7 @@ type RepositoryInterface interface {
 	LoadFromFile(fileName string)
 	MembersInSliceNow() int
 	KvartirasInSliceNow() int
-	SaveToFile(fileName string)
+	SaveToFile(m models.ModelInterface) error
 	GetSliceMembers() []*models.Member
 	GetSliceKvartiras() []*models.Kvartira
 }

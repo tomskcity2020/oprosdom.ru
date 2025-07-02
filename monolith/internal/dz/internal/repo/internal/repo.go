@@ -3,6 +3,7 @@ package repo_internal
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -16,6 +17,7 @@ type RepositoryStruct struct {
 	members     []*models.Member
 	muKvartiras sync.RWMutex
 	kvartiras   []*models.Kvartira
+	muRwFile    sync.RWMutex
 }
 
 func NewCallInternalRepo() *RepositoryStruct {
@@ -37,7 +39,8 @@ func (repo *RepositoryStruct) Save(m models.ModelInterface) error {
 		defer repo.muMembers.Unlock()
 		//log.Printf("data: %+v", data)
 		repo.members = append(repo.members, data)
-		//log.Printf("repo.members: %+v", repo.members)
+		jsonData, _ := json.Marshal(repo.members)
+		log.Printf("[]members: %s", jsonData)
 
 	case *models.Kvartira:
 		//time.Sleep(300 * time.Millisecond) // слип для эмуляции времени работы например записи в базу данных или отправки данных через grpc
@@ -45,8 +48,10 @@ func (repo *RepositoryStruct) Save(m models.ModelInterface) error {
 		defer repo.muKvartiras.Unlock()
 		repo.kvartiras = append(repo.kvartiras, data)
 		//log.Println("repo add kvartiras done")
+		jsonData, _ := json.Marshal(repo.kvartiras)
+		log.Printf("[]kvartiras: %s", jsonData)
 	default:
-		return errors.New("неведомый тип")
+		return errors.New("неведомый тип save")
 	}
 
 	return nil
@@ -86,27 +91,37 @@ func (repo *RepositoryStruct) KvartirasInSliceNow() int {
 	return len(repo.kvartiras)
 }
 
-func (repo *RepositoryStruct) SaveToFile(fileName string) {
-	// мьютекс использовать здесь излишне, так как запись в файл будет осуществляться не параллельно
-	file, err := os.Create(fileName)
+func (repo *RepositoryStruct) SaveToFile(m models.ModelInterface) error {
+
+	repo.muRwFile.Lock()
+	defer repo.muRwFile.Unlock()
+
+	filename := ""
+	var recData any
+
+	switch data := m.(type) {
+	case *models.Member:
+		filename = "members.json"
+		recData = data
+	case *models.Kvartira:
+		filename = "kvartiras.json"
+		recData = data
+	default:
+		return errors.New("неведомый тип savetofile")
+	}
+
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("ошибка создания %v: %v", fileName, err)
-		return
+		return fmt.Errorf("ошибка открытия файла %v для записи: %v", filename, err)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
-
-	switch fileName {
-	case "members.json":
-		if err := encoder.Encode(repo.members); err != nil {
-			log.Printf("ошибка записи в %v: %v", fileName, err)
-		}
-	case "kvartiras.json":
-		if err := encoder.Encode(repo.kvartiras); err != nil {
-			log.Printf("ошибка записи в %v: %v", fileName, err)
-		}
+	if err := encoder.Encode(recData); err != nil {
+		return fmt.Errorf("ошибка записи в файл %v: %v", filename, err)
 	}
+
+	return nil
 
 }
 

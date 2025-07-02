@@ -8,7 +8,6 @@ import (
 )
 
 type ModelInterface interface {
-	Type() string
 }
 
 // func NewUserFactory(name string, phone string, community int) ModelInterface {
@@ -20,14 +19,20 @@ type ModelInterface interface {
 // }
 
 type Member struct {
-	Id        string    `json:"id"`
+	Id        string `json:"id"`
 	Name      string `json:"name"`
 	Phone     string `json:"phone"`
 	Community int    `json:"community"`
 }
 
+// метод CreateUuid будет использоваться только с POST при создании нового member. А BasicValidate тогда можем и для POST и для PUT использовать
+func (m *Member) CreateUuid() error {
+	m.Id = uuid.NewString()
+	return nil
+}
+
 func (m *Member) BasicValidate() error {
-	if _, err := uuid.Parse(m.Id); err !=nil {
+	if _, err := uuid.Parse(m.Id); err != nil {
 		return errors.New("incorrect id")
 	}
 
@@ -48,30 +53,45 @@ func (m *Member) BasicValidate() error {
 	return nil
 }
 
-func (m *Member) Type() string {
-	return "member"
-}
-
-func NewMember(name string, phone string, community int) *Member {
-	return &Member{
-		Name:      name,
-		Phone:     phone,
-		Community: community,
-	}
-}
+// func NewMember(name string, phone string, community int) *Member {
+// 	return &Member{
+// 		Name:      name,
+// 		Phone:     phone,
+// 		Community: community,
+// 	}
+// }
 
 type Kvartira struct {
-	Number string
-	Komnat int
+	Id     string `json:"id"`
+	Number string `json:"number"`
+	Komnat int    `json:"komnat"`
 }
 
-func (obj *Kvartira) Type() string {
-	return "kvartira"
+// func NewKvartira(number string, komnat int) *Kvartira {
+// 	return &Kvartira{
+// 		Number: number,
+// 		Komnat: komnat,
+// 	}
+// }
+
+func (m *Kvartira) CreateUuid() error {
+	m.Id = uuid.NewString()
+	return nil
 }
 
-func NewKvartira(number string, komnat int) *Kvartira {
-	return &Kvartira{
-		Number: number,
-		Komnat: komnat,
+func (m *Kvartira) BasicValidate() error {
+	if _, err := uuid.Parse(m.Id); err != nil {
+		return errors.New("incorrect id")
 	}
+
+	m.Number = strings.TrimSpace(m.Number)
+	if m.Number == "" {
+		return errors.New("empty number")
+	}
+
+	if m.Komnat <= 0 {
+		return errors.New("incorrect komnat")
+	}
+
+	return nil
 }
