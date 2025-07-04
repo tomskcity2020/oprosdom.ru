@@ -1,13 +1,15 @@
 package repo_internal
 
 import (
-	"bufio"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
@@ -47,26 +49,43 @@ func (repo *RepositoryStruct) loadMembersFromFile() error {
 	repo.muMembers.Lock()
 	defer repo.muMembers.Unlock()
 
-	file, err := os.Open("members.json")
+	file, err := os.Open("members.csv")
 	if err != nil {
 		// если файла не существует значит первый запуск вероятнее всего, а значит дальнейшие действия по парсингу не имеют смысла
 		if errors.Is(err, fs.ErrNotExist) { // os.IsNotExist старый метод, его не юзаем
-			log.Println("файл members.json не существует, первый запуск?")
+			log.Println("файл members.csv не существует, первый запуск?")
 			return nil
 		}
 		return err
 	}
 	defer file.Close()
 
-	decoder := json.NewDecoder(file)
+	reader := csv.NewReader(file)
+
 	count := 0
 
-	for decoder.More() {
-		var member models.Member
-		if err := decoder.Decode(&member); err != nil {
+	for {
+
+		record, err := reader.Read()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
 			return err
 		}
-		repo.members = append(repo.members, &member)
+
+		community, _ := strconv.Atoi(record[3])
+
+		member := &models.Member{
+			Id:        record[0],
+			Name:      record[1],
+			Phone:     record[2],
+			Community: community,
+		}
+
+		repo.members = append(repo.members, member)
 		count++
 	}
 
@@ -81,26 +100,42 @@ func (repo *RepositoryStruct) loadKvartirasFromFile() error {
 	repo.muKvartiras.Lock()
 	defer repo.muKvartiras.Unlock()
 
-	file, err := os.Open("kvartiras.json")
+	file, err := os.Open("kvartiras.csv")
 	if err != nil {
 		// если файла не существует значит первый запуск вероятнее всего, а значит дальнейшие действия по парсингу не имеют смысла
 		if errors.Is(err, fs.ErrNotExist) { // os.IsNotExist старый метод, его не юзаем
-			log.Println("файл kvartiras.json не существует, первый запуск?")
+			log.Println("файл kvartiras.csv не существует, первый запуск?")
 			return nil
 		}
 		return err
 	}
 	defer file.Close()
 
-	decoder := json.NewDecoder(file)
+	reader := csv.NewReader(file)
+
 	count := 0
 
-	for decoder.More() {
-		var kvartira models.Kvartira
-		if err := decoder.Decode(&kvartira); err != nil {
+	for {
+
+		record, err := reader.Read()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
 			return err
 		}
-		repo.kvartiras = append(repo.kvartiras, &kvartira)
+
+		komnat, _ := strconv.Atoi(record[2])
+
+		kvartira := &models.Kvartira{
+			Id:     record[0],
+			Number: record[1],
+			Komnat: komnat,
+		}
+
+		repo.kvartiras = append(repo.kvartiras, kvartira)
 		count++
 	}
 
@@ -171,30 +206,35 @@ func (repo *RepositoryStruct) UpdateFile(m models.ModelInterface) error {
 	// после замененной строки не нужно перебирать строки, а делаем копирование оставшегося файла (так как id уникален в нашем случае)
 
 	var searchId string
-	var newLine []byte
+	var newLine []string
 	var filename string
 	var err error
 
 	switch dataInt := m.(type) {
 	case *models.Member:
 		searchId = dataInt.Id
-		newLine, err = json.Marshal(dataInt)
-		if err != nil {
-			return errors.New("анмаршалинг member неудачен")
+		newLine = []string{
+			dataInt.Id,
+			dataInt.Name,
+			dataInt.Phone,
+			strconv.Itoa(dataInt.Community),
 		}
+
 		filename = "members"
 	case *models.Kvartira:
 		searchId = dataInt.Id
-		newLine, err = json.Marshal(dataInt)
-		if err != nil {
-			return errors.New("анмаршалинг kvartira неудачен")
+		newLine = []string{
+			dataInt.Id,
+			dataInt.Number,
+			strconv.Itoa(dataInt.Komnat),
 		}
+
 		filename = "kvartiras"
 	default:
 		return errors.New("неведомый тип данных")
 	}
 
-	file, err := os.Open(filename + ".json")
+	file, err := os.Open(filename + ".csv")
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) { // os.IsNotExist старый метод, его не юзаем
 			return errors.New("файла с данными еще нет :(")
@@ -211,28 +251,35 @@ func (repo *RepositoryStruct) UpdateFile(m models.ModelInterface) error {
 	}
 	defer tempfile.Close()
 
-	readfile := bufio.NewScanner(file)
-	writefile := bufio.NewWriter(tempfile)
+	//readfile := bufio.NewScanner(file)
+	//writefile := bufio.NewWriter(tempfile)
 	found := false
 
-	for readfile.Scan() {
-		line := readfile.Text()
+	readfile := csv.NewReader(file)
+	writefile := csv.NewWriter(tempfile)
 
-		// чтоб получить доступ к id нужно в мапу сконвертировать (типы member/kvartira не используем так как функция универсальная должна быть)
-		var oldLine map[string]any
-		if err := json.Unmarshal([]byte(line), &oldLine); err != nil {
-			return errors.New("ошибка парсинга строки")
+	for {
+		record, err := readfile.Read()
+
+		if err == io.EOF {
+			// если конец файла
+			break
 		}
 
-		// если строка с искомым id есть, то записываем ее
-		if oldLine["id"] == searchId {
+		if err != nil {
+			return errors.New("ошибка чтения csv")
+		}
 
-			found = true
+		if len(record) > 0 {
+			oldLineId := record[0]
 
-			newLineStr := string(newLine) // можно было бы писать сразу []byte, но чтоб не мудрить с переносом строки пока проще в строку сконвертить
+			// если строка с искомым id есть, то заменяем ее на новую
+			if oldLineId == searchId {
+				record = newLine
+				found = true
+			}
 
-			// go автоматически преобразует \n в перенос для текущей операционки
-			if _, err := writefile.WriteString(newLineStr + "\n"); err != nil {
+			if err := writefile.Write(record); err != nil {
 				return errors.New("запись измененной строки в файл не удалась")
 			}
 
@@ -245,12 +292,6 @@ func (repo *RepositoryStruct) UpdateFile(m models.ModelInterface) error {
 			// }
 			// break // останавливаем for
 
-		} else {
-
-			// а если нет, то записываем во временный файл то, что считали из основного без изменений
-			if _, err := writefile.WriteString(line + "\n"); err != nil {
-				return errors.New("запись неизмененных строк в файл не удалась")
-			}
 		}
 
 	}
@@ -260,7 +301,8 @@ func (repo *RepositoryStruct) UpdateFile(m models.ModelInterface) error {
 	}
 
 	// обязательно делаем Flush для гарантии полной очистки буфера!
-	if err := writefile.Flush(); err != nil {
+	writefile.Flush()
+	if err := writefile.Error(); err != nil {
 		return errors.New("flush вернул ошибку")
 	}
 
@@ -272,7 +314,7 @@ func (repo *RepositoryStruct) UpdateFile(m models.ModelInterface) error {
 		return errors.New("ошибка закрытия временного файла")
 	}
 
-	if err := os.Rename(filename+".tmp", filename+".json"); err != nil {
+	if err := os.Rename(filename+".tmp", filename+".csv"); err != nil {
 		return errors.New("не удалось переименовать файл")
 	}
 
@@ -337,29 +379,50 @@ func (repo *RepositoryStruct) SaveToFile(m models.ModelInterface) error {
 	repo.muRwFile.Lock()
 	defer repo.muRwFile.Unlock()
 
-	filename := ""
-	var recData any
-
 	switch data := m.(type) {
 	case *models.Member:
-		filename = "members.json"
-		recData = data
+
+		filename := "members.csv"
+
+		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("ошибка открытия файла %v для записи: %v", filename, err)
+		}
+		defer file.Close()
+
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+
+		memberCsv := []string{
+			data.Id,
+			data.Name,
+			data.Phone,
+			strconv.Itoa(data.Community),
+		}
+		writer.Write(memberCsv)
+
 	case *models.Kvartira:
-		filename = "kvartiras.json"
-		recData = data
+
+		filename := "kvartiras.csv"
+
+		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("ошибка открытия файла %v для записи: %v", filename, err)
+		}
+		defer file.Close()
+
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+
+		kvartiraCsv := []string{
+			data.Id,
+			data.Number,
+			strconv.Itoa(data.Komnat),
+		}
+		writer.Write(kvartiraCsv)
+
 	default:
 		return errors.New("неведомый тип savetofile")
-	}
-
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("ошибка открытия файла %v для записи: %v", filename, err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(recData); err != nil {
-		return fmt.Errorf("ошибка записи в файл %v: %v", filename, err)
 	}
 
 	return nil
