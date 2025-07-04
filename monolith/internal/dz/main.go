@@ -26,6 +26,8 @@ func main() {
 	r.HandleFunc("/api/kvartira", handlers.AddKvartira).Methods("POST")
 	r.HandleFunc("/api/member/{id}", handlers.UpdateMember).Methods("PUT")
 	r.HandleFunc("/api/kvartira/{id}", handlers.UpdateKvartira).Methods("PUT")
+	r.HandleFunc("/api/members", handlers.GetMembers).Methods("GET")
+	r.HandleFunc("/api/kvartiras", handlers.GetKvartiras).Methods("GET")
 
 	srv := &http.Server{
 		Addr:    ":8080",

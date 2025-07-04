@@ -204,3 +204,37 @@ func UpdateKvartira(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&kvartira)
 
 }
+
+func GetMembers(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// обращаемся к репо, при обращении репозиторий подтянет данные из файла в слайс и затем выдаем данные слайса (который на текущий момент, он может в процессе пополнится)
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := repository.GetSliceMembers()
+
+	json.NewEncoder(w).Encode(data)
+
+}
+
+func GetKvartiras(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// обращаемся к репо, при обращении репозиторий подтянет данные из файла в слайс и затем выдаем данные слайса (который на текущий момент, он может в процессе пополнится)
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := repository.GetSliceKvartiras()
+
+	json.NewEncoder(w).Encode(data)
+
+}
