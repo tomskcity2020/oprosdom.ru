@@ -470,3 +470,115 @@ func (repo *RepositoryStruct) GetKvartiraById(id string) (*models.Kvartira, erro
 	return nil, errors.New("not_found")
 
 }
+
+func (repo *RepositoryStruct) RemoveFromFile(filename string, id string) error {
+
+	file, err := os.Open(filename + ".csv")
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) { // os.IsNotExist старый метод, его не юзаем
+			return errors.New("файла с данными еще нет :(")
+		}
+		log.Printf("Файл есть, но чтение не удалось %v: %v", filename, err)
+		return errors.New("файл с данными есть, но чтение не удалось :(")
+	}
+	defer file.Close()
+
+	// читаем и записываем в tempfile чтоб в случае ошибки не сломать оригинальный файл
+	tempfile, err := os.Create(filename + ".tmp")
+	if err != nil {
+		return errors.New("файл tmp не создан, выполнение операции невозможно")
+	}
+	defer tempfile.Close()
+
+	found := false
+
+	readfile := csv.NewReader(file)
+	writefile := csv.NewWriter(tempfile)
+
+	for {
+		record, err := readfile.Read()
+
+		if err == io.EOF {
+			// если конец файла
+			break
+		}
+
+		if err != nil {
+			return errors.New("ошибка чтения csv")
+		}
+
+		if len(record) > 0 {
+			oldLineId := record[0]
+
+			// если строка с искомым id есть, то не делаем ничего, то есть строка эта не будет записана в новый файл, то есть удаление произойдет
+			if oldLineId == id {
+				found = true
+			} else {
+				if err := writefile.Write(record); err != nil {
+					return errors.New("запись измененной строки в файл не удалась")
+				}
+			}
+
+		}
+
+	}
+
+	if !found {
+		return errors.New("id не найден в файле")
+	}
+
+	// обязательно делаем Flush для гарантии полной очистки буфера!
+	writefile.Flush()
+	if err := writefile.Error(); err != nil {
+		return errors.New("flush вернул ошибку")
+	}
+
+	// закрыты должны быть оба файла. defer'ы оставляем на случай ошибок (ошибки не будет при повторной попытке закрытия)
+	if err := file.Close(); err != nil {
+		return errors.New("ошибка закрытия основного файла")
+	}
+	if err := tempfile.Close(); err != nil {
+		return errors.New("ошибка закрытия временного файла")
+	}
+
+	if err := os.Rename(filename+".tmp", filename+".csv"); err != nil {
+		return errors.New("не удалось переименовать файл")
+	}
+
+	return nil
+
+}
+
+func (repo *RepositoryStruct) RemoveMemberSlice(id string) error {
+	repo.muMembers.Lock()
+	defer repo.muMembers.Unlock()
+
+	for i, m := range repo.members {
+		if m.Id == id {
+			repo.members = append(repo.members[:i], repo.members[i+1:]...)
+			break // так как id уникальный дальше можем не перебирать слайс
+		}
+	}
+
+	check, _ := json.Marshal(repo.members)
+	log.Println(string(check))
+
+	return nil
+}
+
+func (repo *RepositoryStruct) RemoveKvartiraSlice(id string) error {
+	repo.muKvartiras.Lock()
+	defer repo.muKvartiras.Unlock()
+
+	for i, m := range repo.kvartiras {
+		if m.Id == id {
+			repo.kvartiras = append(repo.kvartiras[:i], repo.kvartiras[i+1:]...)
+			break // так как id уникальный дальше можем не перебирать слайс
+		}
+	}
+
+	check, _ := json.Marshal(repo.kvartiras)
+	log.Println(string(check))
+
+	return nil
+}

@@ -250,7 +250,7 @@ func GetMember(w http.ResponseWriter, r *http.Request) {
 	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
 	_, err := uuid.Parse(id)
 	if err != nil {
-		replyError(w, "неправильный id жителя", http.StatusInternalServerError)
+		replyError(w, "неправильный id жителя", http.StatusBadRequest)
 		return
 	}
 
@@ -284,7 +284,7 @@ func GetKvartira(w http.ResponseWriter, r *http.Request) {
 	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
 	_, err := uuid.Parse(id)
 	if err != nil {
-		replyError(w, "неправильный id", http.StatusInternalServerError)
+		replyError(w, "неправильный id", http.StatusBadRequest)
 		return
 	}
 
@@ -308,10 +308,57 @@ func GetKvartira(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func RemoveMember(w http.ResponseWriter, r *http.Request) {
+func RemoveById(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// Delete запрос типа /api/item/id — находим и удаляем сущность в csv файле и удаляем структуру из слайса.
+	varsMap := mux.Vars(r)
+	mk := varsMap["mk"]
+	id := varsMap["id"]
 
+	var filename string
+
+	switch mk {
+	case "member":
+		filename = "members"
+	case "kvartira":
+		filename = "kvartiras"
+	default:
+		replyError(w, "неправильный запрос", http.StatusBadRequest)
+		return
+	}
+
+	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
+	_, err := uuid.Parse(id)
+	if err != nil {
+		replyError(w, "неправильный id", http.StatusBadRequest)
+		return
+	}
+
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := repository.RemoveFromFile(filename, id); err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	switch filename {
+	case "members":
+		if err := repository.RemoveMemberSlice(id); err != nil {
+			replyError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	case "kvartiras":
+		if err := repository.RemoveKvartiraSlice(id); err != nil {
+			replyError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	default:
+		replyError(w, "внутренняя ошибка", http.StatusInternalServerError)
+		return
+	}
 }

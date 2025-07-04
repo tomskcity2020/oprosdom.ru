@@ -30,6 +30,7 @@ func main() {
 	r.HandleFunc("/api/kvartiras", handlers.GetKvartiras).Methods("GET")
 	r.HandleFunc("/api/member/{id}", handlers.GetMember).Methods("GET")
 	r.HandleFunc("/api/kvartira/{id}", handlers.GetKvartira).Methods("GET")
+	r.HandleFunc("/api/{mk}/{id}", handlers.RemoveById).Methods("DELETE")
 
 	srv := &http.Server{
 		Addr:    ":8080",

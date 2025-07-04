@@ -34,6 +34,9 @@ type RepositoryInterface interface {
 	GetSliceKvartiras() []*models.Kvartira
 	GetMemberById(id string) (*models.Member, error)
 	GetKvartiraById(id string) (*models.Kvartira, error)
+	RemoveFromFile(filename string, id string) error
+	RemoveMemberSlice(id string) error
+	RemoveKvartiraSlice(id string) error
 }
 
 // func NewRepoFactory() RepositoryInterface {
