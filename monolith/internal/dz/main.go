@@ -1,129 +1,75 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"fmt"
+	"errors"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
+	"time"
 
-	"oprosdom.ru/monolith/internal/dz/internal/models"
-	"oprosdom.ru/monolith/internal/dz/internal/service"
+	"github.com/gorilla/mux"
+	"oprosdom.ru/monolith/internal/dz/internal/handlers"
 )
 
 func main() {
 
-	// modelsData := []models.ModelInterface{
-	// 	models.NewUserFactory("Namme", "+79991231234", 54),
-	// 	models.NewUserFactory("Bobby", "+71000033214", 79),
-	// 	models.NewKvartiraFactory("135b", 3),
-	// 	models.NewUserFactory("Marry", "+72223342343", 91),
-	// 	models.NewKvartiraFactory("179", 1),
-	// 	models.NewKvartiraFactory("11a", 2),
-	// 	models.NewUserFactory("Alex", "+71000032344", 51),
-	// }
+	// предусмотреть контекст!
+	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах
+	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
-	// логика graceful shutdown у нас такая: дожидаемся записи в слайсы и прекращаем дальнейшее выполнение цикла, выходим. Потому что посреди записи в слайс нелогично делать graceful shutdown, потому что он таковым являться не будет ввиду того, что часть данных запишется в слайс, а часть возможно нет
+	r := mux.NewRouter()
+	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/api/member", handlers.AddMember).Methods("POST")
+	r.HandleFunc("/api/kvartira", handlers.AddKvartira).Methods("POST")
+	r.HandleFunc("/api/member/{id}", handlers.UpdateMember).Methods("PUT")
+	r.HandleFunc("/api/kvartira/{id}", handlers.UpdateKvartira).Methods("PUT")
+	r.HandleFunc("/api/members", handlers.GetMembers).Methods("GET")
+	r.HandleFunc("/api/kvartiras", handlers.GetKvartiras).Methods("GET")
+	r.HandleFunc("/api/member/{id}", handlers.GetMember).Methods("GET")
+	r.HandleFunc("/api/kvartira/{id}", handlers.GetKvartira).Methods("GET")
+	r.HandleFunc("/api/{mk}/{id}", handlers.RemoveById).Methods("DELETE")
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+		// таймауты read/write тут не указываем потому что у нас вероятно будут вебсокеты на этом же порту, поэтому будем другими механизмами таймауты отслеживать
+		// хотя нужно изучить вопрос, ws это же не http, а поверх http
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	input := bufio.NewScanner(os.Stdin)
+	errCh := make(chan error, 1)
 
-	for {
-
-		// каждую итерацию создаем новый modelsData в который записываем данные из файла и интерактивного ввода, иначе будет дублирование если вне for разместить
-		modelsData := make([]models.ModelInterface, 0)
-
-		serviceEntity := service.NewServiceFactory()
-
-		// каждую итерацию показываем обновленные данные (читаем файл заново каждую итерацию)
-		serviceEntity.CountData()
-
-		fmt.Println("---Выберите действие---")
-		fmt.Println("1. Добавить жителя")
-		fmt.Println("2. Добавить квартиру")
-		fmt.Println("3. Выйти")
-
-		input.Scan()
-
-		selected := strings.TrimSpace(input.Text())
-
-		select {
-		case <-ctx.Done():
-			fmt.Println("Graceful Shutdown starts")
-			return
-		default:
-
-			switch selected {
-			case "1":
-				member, err := createMemberInput(input)
-				if err != nil {
-					fmt.Printf("Ошибка %v\n", err)
-					continue
-				}
-				modelsData = append(modelsData, member)
-				serviceEntity.RunParallel(modelsData)
-				//serviceEntity.RunSeq(modelsData)
-			case "2":
-				kvartira, err := createKvartiraInput(input)
-				if err != nil {
-					fmt.Printf("Ошибка %v\n", err)
-					continue
-				}
-				modelsData = append(modelsData, kvartira)
-				serviceEntity.RunParallel(modelsData)
-				//serviceEntity.RunSeq(modelsData)
-			case "3":
-				return
-			default:
-				fmt.Println("Неверный выбор. Выберите цифру соответствующую требуемому действию")
-			}
-
+	go func() {
+		log.Printf("Стартуем noTLS сервак на %v порту", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil {
+			errCh <- err
 		}
+	}()
 
+	// select блокирует программу до наступления одного из case. бесконечный for здесь смысла не имеет, так как select запускается единожды и результат любого case приводит к завершению программы
+	select {
+	case err := <-errCh: // присваиваем err значение из канала, область видимости только этот case
+		switch {
+		case errors.Is(err, http.ErrServerClosed):
+			log.Println("Сервак остановлен. Это не неожиданная ошибка, а ожидаемое поведение завершения")
+		default:
+			log.Fatalf("Возникла ошибка: %v", err)
+		}
+	case <-ctx.Done():
+		shutdownCtx, shutdownCtxStop := context.WithTimeout(ctx, 5*time.Second)
+		defer shutdownCtxStop()
+
+		// Shutdown() перестанет принимать новые подключения, но завершит старые
+		// на заметку Shutdown() не ждёт завершения WS-соединений
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Graceful Shutdown http сервера не сработало, ошибка: %v", err)
+		}
+		log.Println("Graceful Shutdown http сервера успешен")
 	}
 
-}
-
-func createMemberInput(input *bufio.Scanner) (models.ModelInterface, error) {
-	fmt.Println("---Добавление жителя---")
-
-	fmt.Println("Введите имя:")
-	input.Scan()
-	name := strings.TrimSpace(input.Text())
-
-	fmt.Println("Телефон:")
-	input.Scan()
-	phone := strings.TrimSpace(input.Text())
-
-	fmt.Println("Номер сообщества:")
-	input.Scan()
-	communityString := strings.TrimSpace(input.Text())
-	community, err := strconv.Atoi(communityString)
-	if err != nil {
-		return nil, fmt.Errorf("номер сообщества должен быть числом")
-	}
-
-	return models.NewUserFactory(name, phone, community), nil
-}
-
-func createKvartiraInput(input *bufio.Scanner) (models.ModelInterface, error) {
-	fmt.Println("---Добавление квартиры---")
-
-	fmt.Println("Введите номер квартиры:")
-	input.Scan()
-	number := strings.TrimSpace(input.Text())
-
-	fmt.Println("Кол-во комнат:")
-	input.Scan()
-	roomsString := strings.TrimSpace(input.Text())
-	rooms, err := strconv.Atoi(roomsString)
-	if err != nil {
-		return nil, fmt.Errorf("число комнат должно быть числом")
-	}
-
-	return models.NewKvartiraFactory(number, rooms), nil
 }

@@ -20,8 +20,6 @@ func NewCallInternalService(repo repo.RepositoryInterface) *ServiceStruct {
 	}
 }
 
-// основной принцип сервисного пакета: берем данные извне или из репо, перекидываем в бизнес-логику, полученный результат сохраняем в репо или отдаем вовне
-
 func (obj *ServiceStruct) CountData() {
 
 	obj.repo.LoadFromFile("members.json")
