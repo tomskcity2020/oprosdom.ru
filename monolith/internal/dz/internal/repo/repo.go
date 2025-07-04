@@ -9,21 +9,24 @@ import (
 
 // глобальная переменная
 var (
-	globalRepo RepositoryInterface
-	repoOnce   sync.Once
+	globalRepo  RepositoryInterface
+	repoOnce    sync.Once
+	repoInitErr error
 )
 
 // вместо NewRepoFactory реализовываем тн синглтон (когда структура создается только 1 раз глобально - нам это нужно чтоб между запросами post/delete запоминать инфу в слайсах)
-func GetRepoSingleton() RepositoryInterface {
+func GetRepoSingleton() (RepositoryInterface, error) {
 	repoOnce.Do(func() {
-		globalRepo = repo_internal.NewCallInternalRepo()
+		globalRepo, repoInitErr = repo_internal.NewCallInternalRepo()
 	})
-	return globalRepo
+	return globalRepo, repoInitErr
 }
 
 type RepositoryInterface interface {
 	Save(m models.ModelInterface) error
 	LoadFromFile(fileName string)
+	UpdateFile(m models.ModelInterface) error
+	UpdateSlice(m models.ModelInterface) error
 	MembersInSliceNow() int
 	KvartirasInSliceNow() int
 	SaveToFile(m models.ModelInterface) error

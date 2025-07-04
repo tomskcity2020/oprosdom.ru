@@ -53,6 +53,10 @@ func (m *Member) BasicValidate() error {
 	return nil
 }
 
+func (m *Member) AddUuid(idRaw string) {
+	m.Id = idRaw
+}
+
 // func NewMember(name string, phone string, community int) *Member {
 // 	return &Member{
 // 		Name:      name,
@@ -77,6 +81,10 @@ type Kvartira struct {
 func (m *Kvartira) CreateUuid() error {
 	m.Id = uuid.NewString()
 	return nil
+}
+
+func (m *Kvartira) AddUuid(idRaw string) {
+	m.Id = idRaw
 }
 
 func (m *Kvartira) BasicValidate() error {

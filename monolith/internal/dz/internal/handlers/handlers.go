@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 	"oprosdom.ru/monolith/internal/dz/internal/repo"
 	//"oprosdom.ru/monolith/internal/dz/internal/service"
@@ -35,14 +36,20 @@ func AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// сохраняем в файл
-	if err := repo.GetRepoSingleton().SaveToFile(&member); err != nil {
+	if err := repository.SaveToFile(&member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// сохраняем в слайс
-	if err := repo.GetRepoSingleton().Save(&member); err != nil {
+	if err := repository.Save(&member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -82,20 +89,118 @@ func AddKvartira(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// сохраняем в файл
-	if err := repo.GetRepoSingleton().SaveToFile(&kvartira); err != nil {
+	if err := repository.SaveToFile(&kvartira); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// сохраняем в слайс
-	if err := repo.GetRepoSingleton().Save(&kvartira); err != nil {
+	if err := repository.Save(&kvartira); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// успех
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(&kvartira)
+
+}
+
+func UpdateMember(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	var member models.Member
+
+	// извлекаем id, если нет id, то никакой ошибки или паники не будет, получим пустую строку ""
+	varsMap := mux.Vars(r)
+	idRaw := varsMap["id"]
+
+	// добавляем пришедший id в структуру, пока не проверяем - проверка будет далее всех полей структуры сразу
+	member.AddUuid(idRaw)
+
+	// парсим данные в структуру
+	if err := json.NewDecoder(r.Body).Decode(&member); err != nil {
+		replyError(w, "некорректное тело запроса", http.StatusBadRequest)
+		return
+	}
+
+	// проводим первичную валидацию (когда структура заполнена включая id)
+	if err := member.BasicValidate(); err != nil {
+		replyError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// создаем репозиторий и вносим изменения в файл и соответствующий слайс
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := repository.UpdateFile(&member); err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := repository.UpdateSlice(&member); err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(&member)
+
+}
+
+func UpdateKvartira(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	var kvartira models.Kvartira
+
+	// извлекаем id, если нет id, то никакой ошибки или паники не будет, получим пустую строку ""
+	varsMap := mux.Vars(r)
+	idRaw := varsMap["id"]
+
+	// добавляем пришедший id в структуру, пока не проверяем - проверка будет далее всех полей структуры сразу
+	kvartira.AddUuid(idRaw)
+
+	// парсим данные в структуру
+	if err := json.NewDecoder(r.Body).Decode(&kvartira); err != nil {
+		replyError(w, "некорректное тело запроса", http.StatusBadRequest)
+		return
+	}
+
+	// проводим первичную валидацию (когда структура заполнена включая id)
+	if err := kvartira.BasicValidate(); err != nil {
+		replyError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// создаем репозиторий и вносим изменения в файл и соответствующий слайс
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := repository.UpdateFile(&kvartira); err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := repository.UpdateSlice(&kvartira); err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	json.NewEncoder(w).Encode(&kvartira)
 
 }
