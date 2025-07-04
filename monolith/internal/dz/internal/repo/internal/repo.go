@@ -437,8 +437,36 @@ func (repo *RepositoryStruct) GetSliceMembers() []*models.Member {
 	return repo.members
 }
 
+func (repo *RepositoryStruct) GetMemberById(id string) (*models.Member, error) {
+	repo.muMembers.RLock()
+	defer repo.muMembers.RUnlock()
+
+	for i, m := range repo.members {
+		if m.Id == id {
+			return repo.members[i], nil
+		}
+	}
+
+	return nil, errors.New("not_found")
+
+}
+
 func (repo *RepositoryStruct) GetSliceKvartiras() []*models.Kvartira {
 	repo.muKvartiras.RLock()
 	defer repo.muKvartiras.RUnlock()
 	return repo.kvartiras
+}
+
+func (repo *RepositoryStruct) GetKvartiraById(id string) (*models.Kvartira, error) {
+	repo.muKvartiras.RLock()
+	defer repo.muKvartiras.RUnlock()
+
+	for i, m := range repo.kvartiras {
+		if m.Id == id {
+			return repo.kvartiras[i], nil
+		}
+	}
+
+	return nil, errors.New("not_found")
+
 }

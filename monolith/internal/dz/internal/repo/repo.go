@@ -32,6 +32,8 @@ type RepositoryInterface interface {
 	SaveToFile(m models.ModelInterface) error
 	GetSliceMembers() []*models.Member
 	GetSliceKvartiras() []*models.Kvartira
+	GetMemberById(id string) (*models.Member, error)
+	GetKvartiraById(id string) (*models.Kvartira, error)
 }
 
 // func NewRepoFactory() RepositoryInterface {

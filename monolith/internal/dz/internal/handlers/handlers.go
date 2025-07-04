@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 	"oprosdom.ru/monolith/internal/dz/internal/repo"
@@ -236,5 +237,81 @@ func GetKvartiras(w http.ResponseWriter, r *http.Request) {
 	data := repository.GetSliceKvartiras()
 
 	json.NewEncoder(w).Encode(data)
+
+}
+
+func GetMember(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	varsMap := mux.Vars(r)
+	id := varsMap["id"]
+
+	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
+	_, err := uuid.Parse(id)
+	if err != nil {
+		replyError(w, "неправильный id жителя", http.StatusInternalServerError)
+		return
+	}
+
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, "ошибка репо", http.StatusInternalServerError)
+		return
+	}
+
+	data, err := repository.GetMemberById(id)
+	if err != nil {
+		if err.Error() == "not_found" {
+			replyError(w, "житель не найден", http.StatusNotFound)
+		} else {
+			replyError(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	json.NewEncoder(w).Encode(data)
+
+}
+
+func GetKvartira(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	varsMap := mux.Vars(r)
+	id := varsMap["id"]
+
+	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
+	_, err := uuid.Parse(id)
+	if err != nil {
+		replyError(w, "неправильный id", http.StatusInternalServerError)
+		return
+	}
+
+	repository, err := repo.GetRepoSingleton()
+	if err != nil {
+		replyError(w, "ошибка репо", http.StatusInternalServerError)
+		return
+	}
+
+	data, err := repository.GetKvartiraById(id)
+	if err != nil {
+		if err.Error() == "not_found" {
+			replyError(w, "квартира не найдена", http.StatusNotFound)
+		} else {
+			replyError(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	json.NewEncoder(w).Encode(data)
+
+}
+
+func RemoveMember(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Delete запрос типа /api/item/id — находим и удаляем сущность в csv файле и удаляем структуру из слайса.
 
 }
