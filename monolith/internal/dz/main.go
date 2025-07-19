@@ -12,25 +12,40 @@ import (
 
 	"github.com/gorilla/mux"
 	"oprosdom.ru/monolith/internal/dz/internal/handlers"
+	"oprosdom.ru/monolith/internal/dz/internal/service"
 )
 
 func main() {
+
+	service := service.NewServiceFactory()
+	h := handlers.NewHandler(service)
 
 	// предусмотреть контекст!
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
+	// curl -X POST "http://127.0.0.1:8080/api/member" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
+	// curl -X POST "http://127.0.0.1:8080/api/kvartira" -H "Content-Type: application/json" -d '{"number":"115","komnat":2}'
+	// curl -X PUT "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
+	// curl -X PUT "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4" -H "Content-Type: application/json" -d '{"number":"12","komnat":3}'
+	// curl -X GET "http://127.0.0.1:8080/api/members" -H "Content-Type: application/json"
+	// curl -X GET "http://127.0.0.1:8080/api/kvartiras" -H "Content-Type: application/json"
+	// curl -X GET "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
+	// curl -X GET "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
+	// curl -X DELETE "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
+	// curl -X DELETE "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", handlers.HomeHandler)
-	r.HandleFunc("/api/member", handlers.AddMember).Methods("POST")
-	r.HandleFunc("/api/kvartira", handlers.AddKvartira).Methods("POST")
-	r.HandleFunc("/api/member/{id}", handlers.UpdateMember).Methods("PUT")
-	r.HandleFunc("/api/kvartira/{id}", handlers.UpdateKvartira).Methods("PUT")
-	r.HandleFunc("/api/members", handlers.GetMembers).Methods("GET")
-	r.HandleFunc("/api/kvartiras", handlers.GetKvartiras).Methods("GET")
-	r.HandleFunc("/api/member/{id}", handlers.GetMember).Methods("GET")
-	r.HandleFunc("/api/kvartira/{id}", handlers.GetKvartira).Methods("GET")
-	r.HandleFunc("/api/{mk}/{id}", handlers.RemoveById).Methods("DELETE")
+	r.HandleFunc("/", h.HomeHandler)
+	r.HandleFunc("/api/member", h.MemberAdd).Methods("POST")
+	r.HandleFunc("/api/kvartira", h.KvartiraAdd).Methods("POST")
+	r.HandleFunc("/api/member/{id}", h.MemberUpdate).Methods("PUT")
+	r.HandleFunc("/api/kvartira/{id}", h.KvartiraUpdate).Methods("PUT")
+	r.HandleFunc("/api/members", h.MembersGet).Methods("GET")
+	r.HandleFunc("/api/kvartiras", h.KvartirasGet).Methods("GET")
+	r.HandleFunc("/api/member/{id}", h.MemberGet).Methods("GET")
+	r.HandleFunc("/api/kvartira/{id}", h.KvartiraGet).Methods("GET")
+	r.HandleFunc("/api/{mk}/{id}", h.RemoveById).Methods("DELETE")
 
 	srv := &http.Server{
 		Addr:    ":8080",

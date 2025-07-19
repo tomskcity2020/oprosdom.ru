@@ -4,18 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"oprosdom.ru/monolith/internal/dz/internal/models"
-	"oprosdom.ru/monolith/internal/dz/internal/repo"
-	//"oprosdom.ru/monolith/internal/dz/internal/service"
+	"oprosdom.ru/monolith/internal/dz/internal/service"
 )
 
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	service service.Service
+}
+
+func NewHandler(service service.Service) *Handler {
+	return &Handler{
+		service: service,
+	}
+}
+
+func (h *Handler) HomeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("HOME"))
 }
 
-func AddMember(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) MemberAdd(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -26,31 +34,8 @@ func AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// создаем uuid (отдельно делаем чтоб BasicValidate использовать и для POST и для PUT)
-	if err := member.CreateUuid(); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	// проводим первичную проверку (структура заполнена полностью сейчас)
-	if err := member.BasicValidate(); err != nil {
-		replyError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// сохраняем в файл
-	if err := repository.SaveToFile(&member); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// сохраняем в слайс
-	if err := repository.Save(&member); err != nil {
+	// service (там репо и бизнес)
+	if err := h.service.MemberAdd(&member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -68,7 +53,7 @@ func replyError(w http.ResponseWriter, error string, statusCode int) {
 	})
 }
 
-func AddKvartira(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) KvartiraAdd(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -79,31 +64,8 @@ func AddKvartira(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// создаем uuid (отдельно делаем чтоб BasicValidate использовать и для POST и для PUT)
-	if err := kvartira.CreateUuid(); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	// проводим первичную проверку (структура заполнена полностью сейчас)
-	if err := kvartira.BasicValidate(); err != nil {
-		replyError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// сохраняем в файл
-	if err := repository.SaveToFile(&kvartira); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// сохраняем в слайс
-	if err := repository.Save(&kvartira); err != nil {
+	// service (там репо и бизнес)
+	if err := h.service.KvartiraAdd(&kvartira); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -114,7 +76,7 @@ func AddKvartira(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UpdateMember(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) MemberUpdate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -125,7 +87,7 @@ func UpdateMember(w http.ResponseWriter, r *http.Request) {
 	idRaw := varsMap["id"]
 
 	// добавляем пришедший id в структуру, пока не проверяем - проверка будет далее всех полей структуры сразу
-	member.AddUuid(idRaw)
+	member.Id = idRaw
 
 	// парсим данные в структуру
 	if err := json.NewDecoder(r.Body).Decode(&member); err != nil {
@@ -133,25 +95,8 @@ func UpdateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// проводим первичную валидацию (когда структура заполнена включая id)
-	if err := member.BasicValidate(); err != nil {
-		replyError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// создаем репозиторий и вносим изменения в файл и соответствующий слайс
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := repository.UpdateFile(&member); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := repository.UpdateSlice(&member); err != nil {
+	// service (там репо и бизнес)
+	if err := h.service.MemberUpdate(&member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -160,7 +105,7 @@ func UpdateMember(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UpdateKvartira(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) KvartiraUpdate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -171,7 +116,7 @@ func UpdateKvartira(w http.ResponseWriter, r *http.Request) {
 	idRaw := varsMap["id"]
 
 	// добавляем пришедший id в структуру, пока не проверяем - проверка будет далее всех полей структуры сразу
-	kvartira.AddUuid(idRaw)
+	kvartira.Id = idRaw
 
 	// парсим данные в структуру
 	if err := json.NewDecoder(r.Body).Decode(&kvartira); err != nil {
@@ -179,25 +124,8 @@ func UpdateKvartira(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// проводим первичную валидацию (когда структура заполнена включая id)
-	if err := kvartira.BasicValidate(); err != nil {
-		replyError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// создаем репозиторий и вносим изменения в файл и соответствующий слайс
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := repository.UpdateFile(&kvartira); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := repository.UpdateSlice(&kvartira); err != nil {
+	// service (там репо и бизнес)
+	if err := h.service.KvartiraUpdate(&kvartira); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -206,67 +134,47 @@ func UpdateKvartira(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func GetMembers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) MembersGet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// обращаемся к репо, при обращении репозиторий подтянет данные из файла в слайс и затем выдаем данные слайса (который на текущий момент, он может в процессе пополнится)
-	repository, err := repo.GetRepoSingleton()
+	// service (там репо и бизнес)
+	data, err := h.service.MembersGet()
 	if err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	data := repository.GetSliceMembers()
-
 	json.NewEncoder(w).Encode(data)
 
 }
 
-func GetKvartiras(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) KvartirasGet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// обращаемся к репо, при обращении репозиторий подтянет данные из файла в слайс и затем выдаем данные слайса (который на текущий момент, он может в процессе пополнится)
-	repository, err := repo.GetRepoSingleton()
+	// service (там репо и бизнес)
+	data, err := h.service.KvartirasGet()
 	if err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	data := repository.GetSliceKvartiras()
-
 	json.NewEncoder(w).Encode(data)
 
 }
 
-func GetMember(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) MemberGet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
 	varsMap := mux.Vars(r)
 	id := varsMap["id"]
 
-	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
-	_, err := uuid.Parse(id)
+	// service (там репо и бизнес)
+	data, err := h.service.MemberGet(id)
 	if err != nil {
-		replyError(w, "неправильный id жителя", http.StatusBadRequest)
-		return
-	}
-
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
-		replyError(w, "ошибка репо", http.StatusInternalServerError)
-		return
-	}
-
-	data, err := repository.GetMemberById(id)
-	if err != nil {
-		if err.Error() == "not_found" {
-			replyError(w, "житель не найден", http.StatusNotFound)
-		} else {
-			replyError(w, err.Error(), http.StatusInternalServerError)
-		}
+		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -274,33 +182,17 @@ func GetMember(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func GetKvartira(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) KvartiraGet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
 	varsMap := mux.Vars(r)
 	id := varsMap["id"]
 
-	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
-	_, err := uuid.Parse(id)
+	// service (там репо и бизнес)
+	data, err := h.service.KvartiraGet(id)
 	if err != nil {
-		replyError(w, "неправильный id", http.StatusBadRequest)
-		return
-	}
-
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
-		replyError(w, "ошибка репо", http.StatusInternalServerError)
-		return
-	}
-
-	data, err := repository.GetKvartiraById(id)
-	if err != nil {
-		if err.Error() == "not_found" {
-			replyError(w, "квартира не найдена", http.StatusNotFound)
-		} else {
-			replyError(w, err.Error(), http.StatusInternalServerError)
-		}
+		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -308,7 +200,7 @@ func GetKvartira(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func RemoveById(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RemoveById(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -316,49 +208,11 @@ func RemoveById(w http.ResponseWriter, r *http.Request) {
 	mk := varsMap["mk"]
 	id := varsMap["id"]
 
-	var filename string
-
-	switch mk {
-	case "member":
-		filename = "members"
-	case "kvartira":
-		filename = "kvartiras"
-	default:
-		replyError(w, "неправильный запрос", http.StatusBadRequest)
-		return
-	}
-
-	// чекаем что idRaw является корректным uuid, если не является - дальше не продолжаем, возвращаем ошибку
-	_, err := uuid.Parse(id)
-	if err != nil {
-		replyError(w, "неправильный id", http.StatusBadRequest)
-		return
-	}
-
-	repository, err := repo.GetRepoSingleton()
-	if err != nil {
+	// service (там репо и бизнес)
+	if err := h.service.RemoveById(mk, id); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err := repository.RemoveFromFile(filename, id); err != nil {
-		replyError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	switch filename {
-	case "members":
-		if err := repository.RemoveMemberSlice(id); err != nil {
-			replyError(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	case "kvartiras":
-		if err := repository.RemoveKvartiraSlice(id); err != nil {
-			replyError(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	default:
-		replyError(w, "внутренняя ошибка", http.StatusInternalServerError)
-		return
-	}
+	w.WriteHeader(http.StatusNoContent)
 }
