@@ -7,9 +7,9 @@ import (
 )
 
 func (b *BizStruct) BasicMemberValidation(member *models.Member) error {
-	if err := b.UuidCheck(member.Id); err != nil {
-		return errors.New(err.Error())
-	}
+	// if err := b.UuidCheck(member.Id); err != nil {
+	// 	return errors.New(err.Error())
+	// }
 	if err := b.nameCheck(member.Name); err != nil {
 		return errors.New(err.Error())
 	}

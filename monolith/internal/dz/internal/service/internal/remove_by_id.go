@@ -1,42 +1,19 @@
 package service_internal
 
 import (
+	"context"
 	"errors"
 )
 
-func (s *ServiceStruct) RemoveById(mk string, id string) error {
-
-	var filename string
-
-	switch mk {
-	case "member":
-		filename = "members"
-	case "kvartira":
-		filename = "kvartiras"
-	default:
-		return errors.New("неправильный запрос")
-	}
+func (s *ServiceStruct) RemoveById(ctx context.Context, id string, mk string) error {
 
 	// чекаем что id является корректным uuid
 	if err := s.biz.UuidCheck(id); err != nil {
-		return errors.New("неправильный id")
+		return errors.New(err.Error())
 	}
 
-	if err := s.repo.RemoveFromFile(filename, id); err != nil {
-		return errors.New("не удалось удалить из файла")
-	}
-
-	switch filename {
-	case "members":
-		if err := s.repo.RemoveMemberSlice(id); err != nil {
-			return errors.New("не удалось удалить из слайса жителей")
-		}
-	case "kvartiras":
-		if err := s.repo.RemoveKvartiraSlice(id); err != nil {
-			return errors.New("не удалось удалить из слайса квартир")
-		}
-	default:
-		return errors.New("внутренняя ошибка")
+	if err := s.repo.DeleteById(ctx, id, mk); err != nil {
+		return errors.New(err.Error())
 	}
 
 	return nil

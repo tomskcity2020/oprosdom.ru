@@ -1,25 +1,27 @@
 package service_internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
 
-func (s *ServiceStruct) KvartiraUpdate(kvartira *models.Kvartira) error {
+func (s *ServiceStruct) KvartiraUpdate(ctx context.Context, k *models.Kvartira) error {
 
 	// проводим первичную валидацию (когда структура заполнена включая id)
-	if err := s.biz.BasicKvartiraValidation(kvartira); err != nil {
+	// сначала отдельно проверяем id, так как из BasicValidation эта проверка исключена (ввиду генерации id на стороне базы данных)
+	if err := s.biz.UuidCheck(k.Id); err != nil {
+		return fmt.Errorf("id validation failed: %v", err.Error())
+	}
+
+	if err := s.biz.BasicKvartiraValidation(k); err != nil {
 		return fmt.Errorf("basic validation failed: %v", err.Error())
 	}
 
-	if err := s.repo.UpdateFile(kvartira); err != nil {
-		return errors.New("update file failed")
-	}
-
-	if err := s.repo.UpdateSlice(kvartira); err != nil {
-		return errors.New("update slice failed")
+	if err := s.repo.KvartiraUpdate(ctx, k); err != nil {
+		return errors.New(err.Error())
 	}
 
 	return nil

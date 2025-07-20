@@ -1,27 +1,24 @@
 package service_internal
 
 import (
+	"context"
 	"errors"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
 
-func (s *ServiceStruct) MemberGet(id string) (*models.Member, error) {
+func (s *ServiceStruct) MemberGet(ctx context.Context, id string) (*models.Member, error) {
 
 	// чекаем что id является корректным uuid
 	if err := s.biz.UuidCheck(id); err != nil {
 		return nil, errors.New("неправильный id жителя")
 	}
 
-	data, err := s.repo.GetMemberById(id)
+	m, err := s.repo.MemberGetById(ctx, id)
 	if err != nil {
-		if err.Error() == "not_found" {
-			return nil, errors.New("житель не найден")
-		} else {
-			return nil, errors.New("данные по жителю не получены")
-		}
+		return nil, errors.New(err.Error())
 	}
 
-	return data, nil
+	return m, nil
 
 }

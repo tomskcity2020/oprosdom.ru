@@ -10,6 +10,7 @@ type BizInterface interface {
 	UuidCheck(id string) error
 	BasicMemberValidation(member *models.Member) error
 	BasicKvartiraValidation(kvartira *models.Kvartira) error
+	DecimalCheck(id string) error
 }
 
 func NewBizFactory() BizInterface {

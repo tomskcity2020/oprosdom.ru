@@ -32,7 +32,7 @@ func TestBasicKvartiraValidation_AllChecksCalled_AST(t *testing.T) {
 
 	// 3. Ожидаемые проверки
 	requiredChecks := []string{
-		"b.UuidCheck",
+		//"b.UuidCheck",
 		"b.kvNumberCheck",
 		"b.kvKomnatCheck",
 	}

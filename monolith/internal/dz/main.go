@@ -12,12 +12,22 @@ import (
 
 	"github.com/gorilla/mux"
 	"oprosdom.ru/monolith/internal/dz/internal/handlers"
+	"oprosdom.ru/monolith/internal/dz/internal/repo"
 	"oprosdom.ru/monolith/internal/dz/internal/service"
 )
 
 func main() {
 
-	service := service.NewServiceFactory()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	repo, err := repo.NewRepoFactory(ctx, "postgres://test:test@127.0.0.1:5432/test?sslmode=disable")
+	if err != nil {
+		log.Fatalf("repo initialization failed with error: %v", err)
+	}
+	defer repo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+
+	service := service.NewServiceFactory(repo)
 	h := handlers.NewHandler(service)
 
 	// предусмотреть контекст!
@@ -34,6 +44,7 @@ func main() {
 	// curl -X GET "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
 	// curl -X DELETE "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
 	// curl -X DELETE "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
+	// curl -X POST "http://127.0.0.1:8080/api/member/b406690d-018a-4fb5-b1b7-70946b92432e/paydebt" -H "Content-Type: application/json" -d '{"kvartira_id":"f983de63-e4f3-483a-b9a2-6e1f3ea960b7","amount":"17500.55"}'
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", h.HomeHandler)
@@ -46,6 +57,7 @@ func main() {
 	r.HandleFunc("/api/member/{id}", h.MemberGet).Methods("GET")
 	r.HandleFunc("/api/kvartira/{id}", h.KvartiraGet).Methods("GET")
 	r.HandleFunc("/api/{mk}/{id}", h.RemoveById).Methods("DELETE")
+	r.HandleFunc("/api/member/{id}/paydebt", h.PayDebt).Methods("POST")
 
 	srv := &http.Server{
 		Addr:    ":8080",
@@ -53,9 +65,6 @@ func main() {
 		// таймауты read/write тут не указываем потому что у нас вероятно будут вебсокеты на этом же порту, поэтому будем другими механизмами таймауты отслеживать
 		// хотя нужно изучить вопрос, ws это же не http, а поверх http
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 

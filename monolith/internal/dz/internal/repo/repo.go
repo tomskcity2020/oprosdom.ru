@@ -1,40 +1,26 @@
 package repo
 
 import (
-	"sync"
+	"context"
 
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 	repo_internal "oprosdom.ru/monolith/internal/dz/internal/repo/internal"
 )
 
-// глобальная переменная
-var (
-	globalRepo  RepositoryInterface
-	repoOnce    sync.Once
-	repoInitErr error
-)
-
-// вместо NewRepoFactory реализовываем тн синглтон (когда структура создается только 1 раз глобально - нам это нужно чтоб между запросами post/delete запоминать инфу в слайсах)
-func GetRepoSingleton() (RepositoryInterface, error) {
-	repoOnce.Do(func() {
-		globalRepo, repoInitErr = repo_internal.NewCallInternalRepo()
-	})
-	return globalRepo, repoInitErr
+func NewRepoFactory(ctx context.Context, conn string) (RepositoryInterface, error) {
+	return repo_internal.NewPostgres(ctx, conn)
 }
 
 type RepositoryInterface interface {
-	Save(m models.ModelInterface) error
-	LoadFromFile(fileName string)
-	UpdateFile(m models.ModelInterface) error
-	UpdateSlice(m models.ModelInterface) error
-	MembersInSliceNow() int
-	KvartirasInSliceNow() int
-	SaveToFile(m models.ModelInterface) error
-	GetSliceMembers() []*models.Member
-	GetSliceKvartiras() []*models.Kvartira
-	GetMemberById(id string) (*models.Member, error)
-	GetKvartiraById(id string) (*models.Kvartira, error)
-	RemoveFromFile(filename string, id string) error
-	RemoveMemberSlice(id string) error
-	RemoveKvartiraSlice(id string) error
+	Close()
+	KvartiraAdd(ctx context.Context, k *models.Kvartira) error
+	KvartiraGetById(ctx context.Context, id string) (*models.Kvartira, error)
+	KvartiraUpdate(ctx context.Context, k *models.Kvartira) error
+	KvartirasGet(ctx context.Context) ([]*models.Kvartira, error)
+	MemberAdd(ctx context.Context, m *models.Member) error
+	MemberGetById(ctx context.Context, id string) (*models.Member, error)
+	MemberUpdate(ctx context.Context, m *models.Member) error
+	MembersGet(ctx context.Context) ([]*models.Member, error)
+	DeleteById(ctx context.Context, id string, mk string) error
+	PayDebt(ctx context.Context, r *models.PayDebtRequest) (*models.PayDebtResponse, error)
 }
