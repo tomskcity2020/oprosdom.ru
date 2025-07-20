@@ -35,7 +35,7 @@ func (h *Handler) MemberAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// service (там репо и бизнес)
-	if err := h.service.MemberAdd(&member); err != nil {
+	if err := h.service.MemberAdd(r.Context(), &member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -65,7 +65,7 @@ func (h *Handler) KvartiraAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// service (там репо и бизнес)
-	if err := h.service.KvartiraAdd(&kvartira); err != nil {
+	if err := h.service.KvartiraAdd(r.Context(), &kvartira); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -96,7 +96,7 @@ func (h *Handler) MemberUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// service (там репо и бизнес)
-	if err := h.service.MemberUpdate(&member); err != nil {
+	if err := h.service.MemberUpdate(r.Context(), &member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -125,7 +125,7 @@ func (h *Handler) KvartiraUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// service (там репо и бизнес)
-	if err := h.service.KvartiraUpdate(&kvartira); err != nil {
+	if err := h.service.KvartiraUpdate(r.Context(), &kvartira); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -139,7 +139,7 @@ func (h *Handler) MembersGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	// service (там репо и бизнес)
-	data, err := h.service.MembersGet()
+	data, err := h.service.MembersGet(r.Context())
 	if err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -154,7 +154,7 @@ func (h *Handler) KvartirasGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	// service (там репо и бизнес)
-	data, err := h.service.KvartirasGet()
+	data, err := h.service.KvartirasGet(r.Context())
 	if err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -172,7 +172,7 @@ func (h *Handler) MemberGet(w http.ResponseWriter, r *http.Request) {
 	id := varsMap["id"]
 
 	// service (там репо и бизнес)
-	data, err := h.service.MemberGet(id)
+	data, err := h.service.MemberGet(r.Context(), id)
 	if err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -190,7 +190,7 @@ func (h *Handler) KvartiraGet(w http.ResponseWriter, r *http.Request) {
 	id := varsMap["id"]
 
 	// service (там репо и бизнес)
-	data, err := h.service.KvartiraGet(id)
+	data, err := h.service.KvartiraGet(r.Context(), id)
 	if err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -209,10 +209,39 @@ func (h *Handler) RemoveById(w http.ResponseWriter, r *http.Request) {
 	id := varsMap["id"]
 
 	// service (там репо и бизнес)
-	if err := h.service.RemoveById(mk, id); err != nil {
+	if err := h.service.RemoveById(r.Context(), id, mk); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) PayDebt(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	var request models.PayDebtRequest
+
+	varsMap := mux.Vars(r)
+	request.MemberId = varsMap["id"]
+
+
+	// парсим данные в структуру то что пришло по POST
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		replyError(w, "некорректное тело запроса", http.StatusBadRequest)
+		return
+	}
+
+	// service (там репо и бизнес)
+	data, err := h.service.PayDebt(r.Context(), &request)
+
+	if err != nil {
+		replyError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(&data)
+
+
 }
