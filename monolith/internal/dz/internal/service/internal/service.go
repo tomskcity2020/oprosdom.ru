@@ -6,35 +6,38 @@ import (
 	"sync"
 	"time"
 
+	"oprosdom.ru/monolith/internal/dz/internal/biz"
 	"oprosdom.ru/monolith/internal/dz/internal/models"
 	"oprosdom.ru/monolith/internal/dz/internal/repo"
 )
 
 type ServiceStruct struct {
 	repo repo.RepositoryInterface
+	biz biz.BizInterface
 }
 
-func NewCallInternalService(repo repo.RepositoryInterface) *ServiceStruct {
+func NewCallInternalService(repo repo.RepositoryInterface, biz biz.BizInterface) *ServiceStruct {
 	return &ServiceStruct{
 		repo: repo,
+		biz: biz,
 	}
 }
 
-func (obj *ServiceStruct) CountData() {
+func (s *ServiceStruct) CountData() {
 
-	obj.repo.LoadFromFile("members.json")
-	obj.repo.LoadFromFile("kvartiras.json")
+	s.repo.LoadFromFile("members.json")
+	s.repo.LoadFromFile("kvartiras.json")
 
-	showMembers := len(obj.repo.GetSliceMembers())
+	showMembers := len(s.repo.GetSliceMembers())
 	fmt.Printf("Всего участников: %v", showMembers)
 	fmt.Println()
 
-	showKvartiras := len(obj.repo.GetSliceKvartiras())
+	showKvartiras := len(s.repo.GetSliceKvartiras())
 	fmt.Printf("Всего квартир: %v", showKvartiras)
 	fmt.Println()
 }
 
-func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
+func (s *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 
 	// чтобы гарантировать корректную работу функции в методе CheckSlices нужно стартануть его ДО запуска кода где вставляются данные в слайс
 	// иначе может быть не пустой слайс когда начнет исполняться CheckSlices и повлияет на корректный вывод изменений слайса
@@ -43,7 +46,7 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 	// wgCheck.Add(1)
 	// go func() {
 	// 	wgCheck.Done() // defer тут не юзаем иначе CheckSlices будем ждать бесконечно
-	// 	obj.CheckSlices()
+	// 	s.CheckSlices()
 	// }()
 	// wgCheck.Wait() // ждем когда горутина с CheckSlices стартанет
 
@@ -66,7 +69,7 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 			go func(model models.ModelInterface) { // при появлении в канале записи стартуем новую горутину потому, что save(model) может занимать какое-то время (в теории), чтоб выполнять параллельно множество операций,а не последовательно
 				defer wgRead.Done()
 				// нам нужно передать контекст непосредственно в Save чтоб там прервать операцию если вдруг долго исполняется
-				obj.repo.Save(model)
+				s.repo.Save(model)
 
 			}(m)
 
@@ -102,22 +105,22 @@ func (obj *ServiceStruct) RunParallel(modelsData []models.ModelInterface) {
 	wgRead.Wait() // ждем завершения работы читателей
 
 	// теоретически у нас всегда будет >0, так как как минимум один экземпляр создастся интерактивно, но на всякий добавляем проверку
-	if obj.repo.MembersInSliceNow() > 0 {
-		obj.repo.SaveToFile("members.json")
+	if s.repo.MembersInSliceNow() > 0 {
+		s.repo.SaveToFile("members.json")
 	}
 
-	if obj.repo.KvartirasInSliceNow() > 0 {
-		obj.repo.SaveToFile("kvartiras.json")
+	if s.repo.KvartirasInSliceNow() > 0 {
+		s.repo.SaveToFile("kvartiras.json")
 	}
 
 }
 
-func (obj *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
+func (s *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
 	wgCheck := sync.WaitGroup{}
 	wgCheck.Add(1)
 	go func() {
 		wgCheck.Done() // defer тут не юзаем иначе CheckSlices будем ждать бесконечно
-		obj.CheckSlices()
+		s.CheckSlices()
 	}()
 	wgCheck.Wait() // ждем когда горутина с CheckSlices стартанет
 
@@ -138,7 +141,7 @@ func (obj *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
 	go func() {
 		defer wgRead.Done()
 		for m := range ch {
-			obj.repo.Save(m)
+			s.repo.Save(m)
 		}
 	}()
 
@@ -146,21 +149,21 @@ func (obj *ServiceStruct) RunSeq(modelsData []models.ModelInterface) {
 	wgRead.Wait()
 	// канал уже закрыт defer'ом в горутине записи
 
-	showMembers := len(obj.repo.GetSliceMembers())
+	showMembers := len(s.repo.GetSliceMembers())
 	fmt.Printf("Всего участников: %v", showMembers)
 	fmt.Println()
 
-	showKvartiras := len(obj.repo.GetSliceKvartiras())
+	showKvartiras := len(s.repo.GetSliceKvartiras())
 	fmt.Printf("Всего квартир: %v", showKvartiras)
 	fmt.Println()
 
 }
 
-func (obj *ServiceStruct) CheckSlices() {
+func (s *ServiceStruct) CheckSlices() {
 	//fmt.Println("check starts")
 	// узнавать количество структур в каждом слайсе на старте (относительно там должен быть 0 - если эта горутина стартанет раньше других)
-	prevMembersCount := len(obj.repo.GetSliceMembers())
-	prevKvartirasCount := len(obj.repo.GetSliceKvartiras())
+	prevMembersCount := len(s.repo.GetSliceMembers())
+	prevKvartirasCount := len(s.repo.GetSliceKvartiras())
 
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop() // обязательно освобождаем ресурсы, сработает когда основная горутина завершится
@@ -171,8 +174,8 @@ func (obj *ServiceStruct) CheckSlices() {
 
 		// узнавать количество структур в каждом слайсе каждые 200 мс
 
-		nowMembers := obj.repo.GetSliceMembers()
-		nowKvartiras := obj.repo.GetSliceKvartiras()
+		nowMembers := s.repo.GetSliceMembers()
+		nowKvartiras := s.repo.GetSliceKvartiras()
 
 		nowMembersCount := len(nowMembers)
 		nowKvartirasCount := len(nowKvartiras)

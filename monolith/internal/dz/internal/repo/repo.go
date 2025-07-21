@@ -38,7 +38,3 @@ type RepositoryInterface interface {
 	RemoveMemberSlice(id string) error
 	RemoveKvartiraSlice(id string) error
 }
-
-// func NewRepoFactory() RepositoryInterface {
-// 	return repo_internal.NewCallInternalRepo()
-// }
