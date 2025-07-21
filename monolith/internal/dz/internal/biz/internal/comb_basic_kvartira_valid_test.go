@@ -1,72 +1,77 @@
 package biz_internal
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"testing"
+
+	"oprosdom.ru/monolith/internal/dz/internal/models"
 )
 
-// TODO
-// код теста не мой! Взял его до поиска более разумного решения как отследить запуск всех функций в сборных функциях: например если кто-то что-то закоментит временно и забудет раскомментировать. Потому что в таком случае юнит-тесты покажут что все норм, а проверки фактически не будет! Поэтому нельзя такого допускать. Но мне кажется должно быть более простое решение, не думаю что разработчики go не предусмотрели такую очевидную потребность
-
-func TestBasicKvartiraValidation_AllChecksCalled_AST(t *testing.T) {
-	// 1. Настраиваем парсер для текущего файла
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "comb_basic_kvartira_valid.go", nil, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("Ошибка парсинга файла comb_basic_kvartira_valid.go: %v", err)
+func TestBizStruct_BasicKvartiraValidation(t *testing.T) {
+	type args struct {
+		kvartira *models.Kvartira
 	}
-
-	// 2. Ищем метод BasicMemberValidation в AST
-	var method *ast.FuncDecl
-	for _, decl := range file.Decls {
-		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Name.Name == "BasicKvartiraValidation" {
-			method = fd
-			break
-		}
+	tests := []struct {
+		name    string
+		b       *BizStruct
+		args    args
+		wantErr bool
+	}{
+		{
+			// здесь мы убеждаемся что валидные данные не вернут error. Более детальные тесты тут не имеют смысла так как для каждого внутреннего метода есть свой юнит тест
+			name: "valid all",
+			b:    &BizStruct{},
+			args: args{
+				kvartira: &models.Kvartira{
+					Id:     "be5cb2a0-911c-451e-84af-5ff276583d28",
+					Number: "52",
+					Komnat: 5,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			// если передадим заведомо невалидный id, а все остальные валидные данные, то в случае невозврата ошибки это будет означать то, что проверка на uuid закомментирована в BasicMemberValidation
+			name: "test UuidCheck",
+			b:    &BizStruct{},
+			args: args{
+				kvartira: &models.Kvartira{
+					Id:     "",
+					Number: "52",
+					Komnat: 5,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test kvNumberCheck",
+			b:    &BizStruct{},
+			args: args{
+				kvartira: &models.Kvartira{
+					Id:     "be5cb2a0-911c-451e-84af-5ff276583d28",
+					Number: "",
+					Komnat: 5,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test kvKomnatCheck",
+			b:    &BizStruct{},
+			args: args{
+				kvartira: &models.Kvartira{
+					Id:     "be5cb2a0-911c-451e-84af-5ff276583d28",
+					Number: "52",
+					Komnat: -1,
+				},
+			},
+			wantErr: true,
+		},
 	}
-	if method == nil {
-		t.Fatal("Метод BasicKvartiraValidation не найден")
-	}
-
-	// 3. Ожидаемые проверки
-	requiredChecks := []string{
-		"b.UuidCheck",
-		"b.kvNumberCheck",
-		"b.kvKomnatCheck",
-	}
-
-	// 4. Собираем фактические вызовы в методе
-	foundChecks := make(map[string]bool)
-	ast.Inspect(method.Body, func(n ast.Node) bool {
-		// Ищем только вызовы функций (CallExpr)
-		if call, ok := n.(*ast.CallExpr); ok {
-			// Проверяем, что это вызов метода через b. (SelectorExpr)
-			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-				// Проверяем, что вызывается метод структуры (b.xxx)
-				if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "b" {
-					checkName := "b." + sel.Sel.Name
-					foundChecks[checkName] = true
-				}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.b.BasicKvartiraValidation(tt.args.kvartira); (err != nil) != tt.wantErr {
+				t.Errorf("BizStruct.BasicKvartiraValidation() error = %v, wantErr %v", err, tt.wantErr)
 			}
-		}
-		return true
-	})
-
-	// 5. Проверяем наличие всех обязательных проверок
-	for _, check := range requiredChecks {
-		if !foundChecks[check] {
-			t.Errorf("Проверка %s отсутствует в методе (возможно закомментирована)", check)
-		}
-	}
-
-	// 6. Дополнительная проверка: нет ли лишних проверок?
-	if len(foundChecks) != len(requiredChecks) {
-		t.Errorf(
-			"Несоответствие количества проверок: ожидалось %d, найдено %d",
-			len(requiredChecks),
-			len(foundChecks),
-		)
+		})
 	}
 }
