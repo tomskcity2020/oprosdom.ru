@@ -34,6 +34,8 @@ func (h *Handler) MemberAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 
+
 	// service (там репо и бизнес)
 	if err := h.service.MemberAdd(r.Context(), &member); err != nil {
 		replyError(w, err.Error(), http.StatusInternalServerError)
