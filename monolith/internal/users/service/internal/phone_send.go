@@ -3,32 +3,18 @@ package users_service_internal
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"oprosdom.ru/monolith/internal/users/models"
+	users_models "oprosdom.ru/monolith/internal/users/models"
 )
 
-func (s *ServiceStruct) PhoneSend(ctx context.Context, p *users_models) error {
+func (s *ServiceStruct) PhoneSend(ctx context.Context, p *users_models.ValidatedPhoneSendReq) error {
 
-	// сначала проверяем телефон, потому что если он невалиден, то смысла тратить время на проверку остального нет
-	if err := s.biz.PhoneNumberCheck(p.Phone); err != nil {
-		return err
-	}
-	
-	
+	// TODO
+	// таблица phonesend в postgresql создана для длительного хранения телефонов (аналитка + будущий функционал)
+	// первой линией обороны нужно сделать redis: перед каждым запросом чекаем записи, если по своду антифлуд-правил все норм, то пишем в postgresql
+	// если не пройдет антифлуд, то отдаем команду что типа все ок, код отправлен
 
-
-
-
-	if err := s.biz.UuidCheck(k.Id); err != nil {
-		return fmt.Errorf("id validation failed: %v", err.Error())
-	}
-
-	if err := s.biz.BasicKvartiraValidation(k); err != nil {
-		return fmt.Errorf("basic validation failed: %v", err.Error())
-	}
-
-	if err := s.repo.KvartiraUpdate(ctx, k); err != nil {
+	if err := s.repo.PhoneSend(ctx, p); err != nil {
 		return errors.New(err.Error())
 	}
 

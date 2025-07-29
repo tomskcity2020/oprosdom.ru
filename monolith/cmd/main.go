@@ -29,7 +29,7 @@ func main() {
 		"pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
-		"pool_max_conn_lifetime_jitter=5m" +
+		"pool_max_conn_lifetime_jitter=5m&" +
 		"pool_max_conn_idle_time=15m&" +
 		"pool_health_check_period=1m"
 

@@ -2,6 +2,7 @@ package users_handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"oprosdom.ru/monolith/internal/shared"
@@ -22,6 +23,7 @@ func NewHandler(service users_service.UsersService) *Handler {
 func replyError(w http.ResponseWriter, err error, publicErr string, statusCode int) {
 	// оригинальный err.Error() логируем в redis с ttl
 	// TODO
+	log.Println(err.Error())
 	w.WriteHeader(statusCode)
 	// отправлять error поле в json'e нет смысла, так как ошибка будет по status code определяться
 	json.NewEncoder(w).Encode(publicErr)
@@ -54,13 +56,13 @@ func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// service (там репо и бизнес)
-	if err := h.service.PhoneSend(r.Context(), &validatedPhoneSendReq); err != nil {
+	if err := h.service.PhoneSend(r.Context(), validatedPhoneSendReq); err != nil {
 		replyError(w, err, "incorrect_phonesend_service", http.StatusInternalServerError)
 		return
 	}
 
 	// успех
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(&member)
+	json.NewEncoder(w).Encode("success")
 
 }

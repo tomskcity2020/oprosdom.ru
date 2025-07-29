@@ -1,4 +1,4 @@
-package handlers
+package old_handlers
 
 type RequestChangePhone struct {
 	Phone string `json:"phone"`

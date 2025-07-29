@@ -1,15 +1,15 @@
-package users_service
+package old_users_service
 
-import (
-	users_repo "oprosdom.ru/monolith/internal/users/service/repo"
-)
+// import (
+// 	users_repo "oprosdom.ru/monolith/internal/users/service/repo"
+// )
 
-type UserService struct {
-	repo users_repo.RepositoryInterface
-}
+// type UserService struct {
+// 	repo users_repo.RepositoryInterface
+// }
 
-func NewUserService(repo users_repo.RepositoryInterface) *UserService {
-	return &UserService{
-		repo: repo,
-	}
-}
+// func NewUserService(repo users_repo.RepositoryInterface) *UserService {
+// 	return &UserService{
+// 		repo: repo,
+// 	}
+// }
