@@ -1,4 +1,16 @@
-package models_internal
+package models
+
+type ModelInterface interface {
+	Type() string
+}
+
+func NewUserFactory(name string, phone string, community int) ModelInterface {
+	return NewMember(name, phone, community)
+}
+
+func NewKvartiraFactory(number string, komnat int) ModelInterface {
+	return NewKvartira(number, komnat)
+}
 
 type Member struct {
 	Name      string
