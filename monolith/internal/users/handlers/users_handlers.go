@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"oprosdom.ru/monolith/internal/shared"
+	"oprosdom.ru/shared"
 	users_models "oprosdom.ru/monolith/internal/users/models"
 	users_service "oprosdom.ru/monolith/internal/users/service"
 )

@@ -3,7 +3,7 @@ package users_models
 import (
 	"net"
 
-	shared_validate "oprosdom.ru/monolith/internal/shared/validate"
+	shared_validate "oprosdom.ru/shared/validate"
 )
 
 type UnsafePhoneSendReq struct {

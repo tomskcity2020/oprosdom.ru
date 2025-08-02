@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "oprosdom.ru/shared/proto";
+
+message MessageOutbound {
+  bool urgent = 1;
+  string type = 2;         // "sms" или "call"
+  string phone_number = 3; // формат e.194
+  string message = 4;
+}
