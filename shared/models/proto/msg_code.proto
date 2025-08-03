@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "oprosdom.ru/shared/proto";
+option go_package = "oprosdom.ru/shared/models/proto";
 
-message MessageOutbound {
+message MsgCode {
   bool urgent = 1;
   string type = 2;         // "sms" или "call"
   string phone_number = 3; // формат e.194

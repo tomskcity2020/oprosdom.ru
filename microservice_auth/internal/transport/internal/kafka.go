@@ -2,12 +2,12 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/segmentio/kafka-go"
-	"oprosdom.ru/shared/models"
+	"google.golang.org/protobuf/proto"
+	pb "oprosdom.ru/shared/models/proto"
 )
 
 type Producer struct {
@@ -31,10 +31,10 @@ func NewKafka(ctx context.Context, conn string, topic string) (*Producer, error)
 	}, nil
 }
 
-func (p *Producer) Send(ctx context.Context, msg *shared_models.MsgCode) error {
-	jsonData, err := json.Marshal(msg)
+func (p *Producer) Send(ctx context.Context, msg *pb.MsgCode) error {
+	protoData, err := proto.Marshal(msg)
 	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
+		return fmt.Errorf("failed to marshal protobuf msg: %w", err)
 	}
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -42,7 +42,7 @@ func (p *Producer) Send(ctx context.Context, msg *shared_models.MsgCode) error {
 
 	err = p.writer.WriteMessages(ctxTimeout, kafka.Message{
 		Key:   []byte(msg.PhoneNumber), // Партиционирование по номеру телефона упрощает обработку и масштабирование, сохраняя последовательность для каждого пользователя. Если юзер несколько кодов запросит, чтоб и он и мы понимали где последний актуальный код
-		Value: jsonData,
+		Value: protoData,
 	})
 
 	if err != nil {

@@ -6,12 +6,12 @@ import (
 	"log"
 
 	"oprosdom.ru/microservice_auth/internal/models"
-	shared_models "oprosdom.ru/shared/models"
+	pb "oprosdom.ru/shared/models/proto"
 )
 
 func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error {
 
-	// TODO
+	// TODO Redis antiflood records
 	// таблица phonesend в postgresql создана для длительного хранения телефонов (аналитка + будущий функционал)
 	// первой линией обороны нужно сделать redis: перед каждым запросом чекаем записи, если по своду антифлуд-правил все норм, то пишем в postgresql
 	// если не пройдет антифлуд, то отдаем команду что типа все ок, код отправлен - чтоб сбивать злоумышленника с толку
@@ -20,7 +20,7 @@ func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneS
 		return errors.New(err.Error())
 	}
 
-	msg := &shared_models.MsgCode{
+	msg := &pb.MsgCode{
 		Urgent:      true,
 		Type:        "sms",
 		PhoneNumber: "+79994951548",

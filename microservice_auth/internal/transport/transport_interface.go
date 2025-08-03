@@ -4,7 +4,7 @@ import (
 	"context"
 
 	kafka "oprosdom.ru/microservice_auth/internal/transport/internal"
-	shared_models "oprosdom.ru/shared/models"
+	pb "oprosdom.ru/shared/models/proto"
 )
 
 func NewTransportFactory(ctx context.Context, conn string, topic string) (TransportInterface, error) {
@@ -12,6 +12,6 @@ func NewTransportFactory(ctx context.Context, conn string, topic string) (Transp
 }
 
 type TransportInterface interface {
-	Send(ctx context.Context, msg *shared_models.MsgCode) error
+	Send(ctx context.Context, msg *pb.MsgCode) error
 	Close() error
 }
