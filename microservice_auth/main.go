@@ -65,6 +65,7 @@ func main() {
 
 	errCh := make(chan error, 1)
 
+	// запускаем в отдельной горутине потому что ListenAndServe это блокирующий вызов, и без горутины мы до select никогдай не дойдем. А значит graceful shutdown не получится.
 	go func() {
 		log.Printf("Стартуем noTLS микросервис AUTH на %v порту", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil {
@@ -82,7 +83,8 @@ func main() {
 			log.Fatalf("Возникла ошибка: %v", err)
 		}
 	case <-ctx.Done():
-		shutdownCtx, shutdownCtxStop := context.WithTimeout(ctx, 5*time.Second)
+		// мы не должны передавать ctx иначе shutdownCtx немедленно отменится при отмене ctx. Вместо этого делаем новый контекст, который даст 5 сек на довыполнение
+		shutdownCtx, shutdownCtxStop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCtxStop()
 
 		// Shutdown() перестанет принимать новые подключения, но завершит старые
