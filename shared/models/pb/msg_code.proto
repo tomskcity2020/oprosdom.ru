@@ -1,12 +1,13 @@
 syntax = "proto3";
 
-package proto;
+package pb;
 
-option go_package = "oprosdom.ru/shared/models/proto";
+option go_package = "oprosdom.ru/shared/models/pb";
 
 message MsgCode {
   bool urgent = 1;
   string type = 2;         // "sms" или "call"
   string phone_number = 3; // формат e.194
   string message = 4;
+  int32 retry = 5; // какая это попытка отправки сообшения
 }

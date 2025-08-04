@@ -4,7 +4,7 @@ import (
 	"context"
 
 	kafka "oprosdom.ru/microservice_auth/internal/transport/internal"
-	pb "oprosdom.ru/shared/models/proto"
+	"oprosdom.ru/shared/models/pb"
 )
 
 func NewTransportFactory(ctx context.Context, conn string, topic string) (TransportInterface, error) {

@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"oprosdom.ru/shared"
 	"oprosdom.ru/microservice_auth/internal/models"
 	"oprosdom.ru/microservice_auth/internal/service"
+	"oprosdom.ru/shared"
 )
 
 type Handler struct {

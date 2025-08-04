@@ -4,7 +4,7 @@
 // 	protoc        v6.31.1
 // source: msg_code.proto
 
-package proto
+package pb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -27,6 +27,7 @@ type MsgCode struct {
 	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                                  // "sms" или "call"
 	PhoneNumber   string                 `protobuf:"bytes,3,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"` // формат e.194
 	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	Retry         int32                  `protobuf:"varint,5,opt,name=retry,proto3" json:"retry,omitempty"` // какая это попытка отправки сообшения
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -89,16 +90,24 @@ func (x *MsgCode) GetMessage() string {
 	return ""
 }
 
+func (x *MsgCode) GetRetry() int32 {
+	if x != nil {
+		return x.Retry
+	}
+	return 0
+}
+
 var File_msg_code_proto protoreflect.FileDescriptor
 
 const file_msg_code_proto_rawDesc = "" +
 	"\n" +
-	"\x0emsg_code.proto\x12\x05proto\"r\n" +
+	"\x0emsg_code.proto\x12\x05proto\"\x88\x01\n" +
 	"\aMsgCode\x12\x16\n" +
 	"\x06urgent\x18\x01 \x01(\bR\x06urgent\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12!\n" +
 	"\fphone_number\x18\x03 \x01(\tR\vphoneNumber\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessageB!Z\x1foprosdom.ru/shared/models/protob\x06proto3"
+	"\amessage\x18\x04 \x01(\tR\amessage\x12\x14\n" +
+	"\x05retry\x18\x05 \x01(\x05R\x05retryB!Z\x1foprosdom.ru/shared/models/protob\x06proto3"
 
 var (
 	file_msg_code_proto_rawDescOnce sync.Once

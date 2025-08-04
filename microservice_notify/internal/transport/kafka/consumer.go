@@ -4,19 +4,21 @@ import (
 	"context"
 	"errors"
 	"log"
-	"log/slog"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"google.golang.org/protobuf/proto"
+	"oprosdom.ru/microservice_notify/internal/models"
+	"oprosdom.ru/microservice_notify/internal/service"
+	"oprosdom.ru/shared/models/pb"
 )
 
 type Consumer struct {
 	reader *kafka.Reader
-	// svc    service.MessageService
+	svc    service.ServiceInterface
 }
 
-// func NewConsumer(brokers []string, topic, groupID string, svc service.MessageService) *Consumer {
-func NewConsumer(brokers []string, topic string, groupID string) *Consumer {
+func NewConsumer(brokers []string, topic string, groupID string, svc service.ServiceInterface) *Consumer {
 	return &Consumer{
 		reader: kafka.NewReader(kafka.ReaderConfig{
 			Brokers:        brokers,
@@ -27,45 +29,56 @@ func NewConsumer(brokers []string, topic string, groupID string) *Consumer {
 			CommitInterval: time.Second,
 			MaxWait:        5 * time.Second,
 		}),
-		// svc: svc,
+		svc: svc,
 	}
 }
 
 func (c *Consumer) Start(ctx context.Context) error {
-	defer c.reader.Close()
+	defer func() {
+		log.Println("Kafka reader closed")
+		if err := c.reader.Close(); err != nil {
+			log.Printf("Error closing Kafka reader: %v", err)
+		}
+	}()
 
 	for {
-		select {
-		case <-ctx.Done():
-			slog.InfoContext(ctx, "Stopping Kafka consumer")
-			return nil
-		default:
-			// Читаем сообщение с таймаутом
-			//msg, err := c.reader.ReadMessage(ctx)
-			_, err := c.reader.ReadMessage(ctx)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return nil
-				}
-				slog.ErrorContext(ctx, "Error reading message", "error", err)
-				continue
+		msg, err := c.reader.ReadMessage(ctx)
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				log.Println("Kafka consumer stopped by context cancel")
+				return nil
 			}
 
-			log.Println("got message!")
-
-			// // Декодируем сообщение
-			// var message service.Message
-			// if err := json.Unmarshal(msg.Value, &message); err != nil {
-			// 	slog.ErrorContext(ctx, "Error decoding message",
-			// 		"offset", msg.Offset, "partition", msg.Partition, "error", err)
-			// 	continue
-			// }
-
-			// // Обрабатываем сообщение через сервис
-			// if err := c.svc.ProcessMessage(ctx, message); err != nil {
-			// 	slog.ErrorContext(ctx, "Error processing message",
-			// 		"phone", message.Phone, "error", err)
-			// }
+			log.Printf("Error reading message: %v", err)
+			continue
 		}
+
+		// Декодируем protobuf сообщение
+		var msgCode pb.MsgCode
+		if err := proto.Unmarshal(msg.Value, &msgCode); err != nil {
+			log.Printf("Error decoding protobuf message [offset:%d partition:%d]: %v", msg.Offset, msg.Partition, err)
+			continue
+		}
+
+		// Преобразуем в структуру сервиса
+		unsafeMsg := models.UnsafeMsg{
+			Urgent:      msgCode.GetUrgent(),
+			Type:        msgCode.GetType(),
+			Phone:       msgCode.GetPhoneNumber(),
+			MessageText: msgCode.GetMessage(),
+			Retry:       msgCode.GetRetry(),
+		}
+
+		// Первичную проверку нужно проводить на уровне хендлера и отдаем в сервис уже valid, здесь аналогично
+		validMsg, err := unsafeMsg.Validate()
+		if err != nil {
+			log.Println("Error validating msg")
+		}
+
+		// Обрабатываем сообщение
+		if err := c.svc.ProcessMessage(ctx, validMsg); err != nil {
+			log.Printf("Error processing message: %v", err)
+		}
+
 	}
 }

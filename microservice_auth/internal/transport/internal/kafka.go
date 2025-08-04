@@ -7,7 +7,7 @@ import (
 
 	"github.com/segmentio/kafka-go"
 	"google.golang.org/protobuf/proto"
-	pb "oprosdom.ru/shared/models/proto"
+	"oprosdom.ru/shared/models/pb"
 )
 
 type Producer struct {

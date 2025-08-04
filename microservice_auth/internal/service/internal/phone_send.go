@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"oprosdom.ru/microservice_auth/internal/models"
-	pb "oprosdom.ru/shared/models/proto"
+	"oprosdom.ru/shared/models/pb"
 )
 
 func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error {
@@ -25,6 +25,7 @@ func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneS
 		Type:        "sms",
 		PhoneNumber: "+79994951548",
 		Message:     "OprosDom.ru ваш код 1234",
+		Retry:       1,
 	}
 
 	if err := s.codeTransport.Send(ctx, msg); err != nil {

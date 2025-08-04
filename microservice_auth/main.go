@@ -22,7 +22,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	userRepoConn := "postgres://test:test@127.0.0.1:5432/users?" +
+	userRepoConn := "postgres://test:test@127.0.0.1:5433/users?" +
 		"sslmode=disable&" +
 		"pool_min_conns=5&" +
 		"pool_max_conns=25&" +
