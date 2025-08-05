@@ -23,11 +23,9 @@ const (
 
 type MsgCode struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Urgent        bool                   `protobuf:"varint,1,opt,name=urgent,proto3" json:"urgent,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                                  // "sms" или "call"
-	PhoneNumber   string                 `protobuf:"bytes,3,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"` // формат e.194
-	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	Retry         int32                  `protobuf:"varint,5,opt,name=retry,proto3" json:"retry,omitempty"` // какая это попытка отправки сообшения
+	Phone         string                 `protobuf:"bytes,1,opt,name=phone,proto3" json:"phone,omitempty"`  // формат e.194
+	Code          uint32                 `protobuf:"varint,2,opt,name=code,proto3" json:"code,omitempty"`   // у нас возможны варианты от 1000 до 9999, этот тип экономичнее
+	Retry         uint32                 `protobuf:"varint,3,opt,name=retry,proto3" json:"retry,omitempty"` // какая это попытка отправки сообшения
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -62,35 +60,21 @@ func (*MsgCode) Descriptor() ([]byte, []int) {
 	return file_msg_code_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *MsgCode) GetUrgent() bool {
+func (x *MsgCode) GetPhone() string {
 	if x != nil {
-		return x.Urgent
-	}
-	return false
-}
-
-func (x *MsgCode) GetType() string {
-	if x != nil {
-		return x.Type
+		return x.Phone
 	}
 	return ""
 }
 
-func (x *MsgCode) GetPhoneNumber() string {
+func (x *MsgCode) GetCode() uint32 {
 	if x != nil {
-		return x.PhoneNumber
+		return x.Code
 	}
-	return ""
+	return 0
 }
 
-func (x *MsgCode) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *MsgCode) GetRetry() int32 {
+func (x *MsgCode) GetRetry() uint32 {
 	if x != nil {
 		return x.Retry
 	}
@@ -101,13 +85,11 @@ var File_msg_code_proto protoreflect.FileDescriptor
 
 const file_msg_code_proto_rawDesc = "" +
 	"\n" +
-	"\x0emsg_code.proto\x12\x05proto\"\x88\x01\n" +
-	"\aMsgCode\x12\x16\n" +
-	"\x06urgent\x18\x01 \x01(\bR\x06urgent\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x12!\n" +
-	"\fphone_number\x18\x03 \x01(\tR\vphoneNumber\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\x12\x14\n" +
-	"\x05retry\x18\x05 \x01(\x05R\x05retryB!Z\x1foprosdom.ru/shared/models/protob\x06proto3"
+	"\x0emsg_code.proto\x12\x02pb\"I\n" +
+	"\aMsgCode\x12\x14\n" +
+	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\rR\x04code\x12\x14\n" +
+	"\x05retry\x18\x03 \x01(\rR\x05retryB\x1eZ\x1coprosdom.ru/shared/models/pbb\x06proto3"
 
 var (
 	file_msg_code_proto_rawDescOnce sync.Once
@@ -123,7 +105,7 @@ func file_msg_code_proto_rawDescGZIP() []byte {
 
 var file_msg_code_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_msg_code_proto_goTypes = []any{
-	(*MsgCode)(nil), // 0: proto.MsgCode
+	(*MsgCode)(nil), // 0: pb.MsgCode
 }
 var file_msg_code_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

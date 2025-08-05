@@ -1,4 +1,6 @@
 commands.md
 monolith/cmd/main.exe
-microservice_auth/main.exe
-microservice_notify/main.exe
+msvc_auth/main.exe
+msvc_codesender/main.exe
+msvc_codesender/readme.md
+msvc_codesender/.env

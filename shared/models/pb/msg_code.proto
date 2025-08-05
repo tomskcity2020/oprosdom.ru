@@ -5,9 +5,7 @@ package pb;
 option go_package = "oprosdom.ru/shared/models/pb";
 
 message MsgCode {
-  bool urgent = 1;
-  string type = 2;         // "sms" или "call"
-  string phone_number = 3; // формат e.194
-  string message = 4;
-  int32 retry = 5; // какая это попытка отправки сообшения
+  string phone = 1; // формат e.194
+  uint32 code  = 2; // у нас возможны варианты от 1000 до 9999, этот тип экономичнее
+  uint32 retry = 3; // какая это попытка отправки сообшения
 }

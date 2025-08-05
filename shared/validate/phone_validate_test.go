@@ -21,6 +21,18 @@ func TestPhoneValidate(t *testing.T) {
 			expectedType:  "mobile",
 		},
 		{
+			name:          "Valid megafon mobile",
+			input:         "89252341234",
+			expectedPhone: "+79252341234",
+			expectedType:  "mobile",
+		},
+		{
+			name:          "Valid tele2 mobile",
+			input:         "89772341234",
+			expectedPhone: "+79772341234",
+			expectedType:  "mobile",
+		},
+		{
 			name:          "Valid Russian landline",
 			input:         "+7 (495) 123-45-67",
 			expectedPhone: "+74951234567",
