@@ -57,7 +57,7 @@ func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 
 	// service (там репо и бизнес)
 	if err := h.service.PhoneSend(r.Context(), validatedPhoneSendReq); err != nil {
-		replyError(w, err, "incorrect_phonesend_service", http.StatusInternalServerError)
+		replyError(w, err, "phonesend_wrong_request", http.StatusInternalServerError)
 		return
 	}
 

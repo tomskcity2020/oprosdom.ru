@@ -29,6 +29,7 @@ func NewPostgres(ctx context.Context, conn string) (*Postgres, error) {
 	}
 
 	// нужно проверить реальную связь с рулом, но может быть timeout поэтому подстраховываемся контекстом
+	// еще раз чтоб не попутать как работает контекст: 1) если ctx придет раньше 5 секунд, то отменится раньше 5 сек 2) если ctx не придет и операция не завершится, то через 5 секунд отменится по таймауту
 	ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

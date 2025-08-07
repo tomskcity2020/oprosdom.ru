@@ -15,7 +15,7 @@ type UsersService interface {
 }
 
 // фабрика будет вызывать другой конструктор из internal service
-func NewServiceFactory(repo repo.RepositoryInterface, codeTransport transport.TransportInterface) UsersService {
+func NewServiceFactory(ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, codeTransport transport.TransportInterface) UsersService {
 	biz := biz.NewBizFactory()
-	return service_internal.NewCallInternalService(repo, biz, codeTransport)
+	return service_internal.NewCallInternalService(ramRepo, repo, biz, codeTransport)
 }

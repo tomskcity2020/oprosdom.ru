@@ -22,7 +22,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	userRepoConn := "postgres://test:test@127.0.0.1:5433/users?" +
+	postgresConn := "postgres://test:test@127.0.0.1:5433/users?" +
 		"sslmode=disable&" +
 		"pool_min_conns=5&" +
 		"pool_max_conns=25&" +
@@ -31,11 +31,19 @@ func main() {
 		"pool_max_conn_idle_time=15m&" +
 		"pool_health_check_period=1m"
 
-	usersRepo, err := repo.NewRepoFactory(ctx, userRepoConn)
+	// на будущее! чтоб не забыть! нельзя называть переменную также как пакет, иначе еще раз этот пакет не вызвать!
+	postgres, err := repo.NewRepoFactory(ctx, postgresConn)
 	if err != nil {
-		log.Fatalf("repo initialization failed with error: %v", err)
+		log.Fatalf("postgresql initialization failed with error: %v", err)
 	}
-	defer usersRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+	defer postgres.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+
+	redisAddr := "localhost:6379"
+	redis, err := repo.NewRamRepoFactory(ctx, redisAddr)
+	if err != nil {
+		log.Fatalf("redis initialization failed with error: %v", err)
+	}
+	defer redis.Close()
 
 	codeTransport, err := transport.NewTransportFactory(ctx, "localhost:9092", "code")
 	if err != nil {
@@ -43,18 +51,18 @@ func main() {
 	}
 	defer codeTransport.Close()
 
-	usersService := service.NewServiceFactory(usersRepo, codeTransport)
-	usersHandler := handlers.NewHandler(usersService)
+	authService := service.NewServiceFactory(redis, postgres, codeTransport)
+	authHandler := handlers.NewHandler(authService)
 
 	// предусмотреть контекст!
-	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах
+	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах (по сути перед затратными операциями нужно ловить отмену контекста)
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
-	// curl -X POST "http://127.0.0.1/auth/requestcode" -H "Content-Type: application/json" -d '{"phone":"+79991234567"}'
+	// curl -X POST "http://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79991234567"}'
 
 	r := mux.NewRouter()
-	r.HandleFunc("/auth/requestcode", usersHandler.PhoneSend).Methods("POST")
-	// verification/phonecode
+	r.HandleFunc("/auth/phone", authHandler.PhoneSend).Methods("POST")
+	// auth/code post
 
 	srv := &http.Server{
 		Addr:    ":8081",
