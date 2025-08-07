@@ -33,7 +33,7 @@ func (s *ServiceStruct) ProcessMessage(ctx context.Context, gateway *gateway.Gat
 
 	s.repo.LogSmsAttempt(waitCtx, msg.Id, gateway.Name, "attempt", "")
 
-	if err = gateway.Send(*msg); err != nil {
+	if err = gateway.Send(waitCtx, *msg); err != nil {
 		s.repo.LogSmsAttempt(waitCtx, msg.Id, gateway.Name, "failed", err.Error())
 
 		if updateErr := s.repo.UpdateMessageStatus(waitCtx, msg.Id, "wait", ""); updateErr != nil {

@@ -58,7 +58,7 @@ func main() {
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах (по сути перед затратными операциями нужно ловить отмену контекста)
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
-	// curl -X POST "http://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79991234567"}'
+	// curl -X POST "http://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79191234567"}'
 
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/phone", authHandler.PhoneSend).Methods("POST")

@@ -2,8 +2,10 @@ package service_internal
 
 import (
 	"context"
+	"log"
 
 	"oprosdom.ru/msvc_auth/internal/models"
+	"oprosdom.ru/shared/models/pb"
 )
 
 func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error {
@@ -27,17 +29,17 @@ func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneS
 	// 	return errors.New(err.Error())
 	// }
 
-	// msg := &pb.MsgCode{
-	// 	Phone: "+73822724299",
-	// 	Code:  1234,
-	// 	Retry: 3,
-	// }
+	msg := &pb.MsgCode{
+		Phone: "+79994951548",
+		Code:  1234,
+		Retry: 3,
+	}
 
-	// if err := s.codeTransport.Send(ctx, msg); err != nil {
-	// 	log.Printf("Failed to send code: %v", err)
-	// } else {
-	// 	log.Println("Code sent successfully")
-	// }
+	if err := s.codeTransport.Send(ctx, msg); err != nil {
+		log.Printf("Failed to send code: %v", err)
+	} else {
+		log.Println("Code sent successfully")
+	}
 
 	return nil
 

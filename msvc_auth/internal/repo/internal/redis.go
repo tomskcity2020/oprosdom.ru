@@ -14,11 +14,16 @@ type Redis struct {
 }
 
 func NewRedis(ctx context.Context, addr string) (*Redis, error) {
+
+	// таймаут 10 сек если ctx не придет быстрее
+	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 	})
 
-	if _, err := client.Ping(ctx).Result(); err != nil {
+	if _, err := client.Ping(ctxTimeout).Result(); err != nil {
 		return nil, fmt.Errorf("redis ping failed: %w", err)
 	}
 

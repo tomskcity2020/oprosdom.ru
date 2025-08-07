@@ -1,10 +1,12 @@
 package gateway
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"oprosdom.ru/msvc_codesender/internal/models"
+	"oprosdom.ru/msvc_codesender/internal/repo"
 	http_client "oprosdom.ru/msvc_codesender/internal/transport/http"
 )
 
@@ -13,10 +15,11 @@ type Gateway struct {
 	URL       string
 	Type      string
 	Transport *http_client.HTTPTransport
+	Repo      repo.NoSqlInterface
 	Config    map[string]string
 }
 
-func (g *Gateway) Send(msg models.MsgFromRepo) error {
+func (g *Gateway) Send(ctx context.Context, msg models.MsgFromRepo) error {
 	var payload map[string]string
 
 	switch g.Name {
@@ -45,5 +48,12 @@ func (g *Gateway) Send(msg models.MsgFromRepo) error {
 		return errors.New("unknown gateway")
 	}
 
-	return g.Transport.Post(g.URL, payload)
+	gatewayRepsonse, err := g.Transport.Post(g.URL, payload)
+	if err!=nil {
+		return fmt.Errorf("gateway http transport failed: %w", err)
+	}
+
+	g.Repo.LogResponse(ctx, g.Name, gatewayRepsonse)
+
+	return nil
 }

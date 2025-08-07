@@ -19,3 +19,12 @@ type RepositoryInterface interface {
 	UpdateMessageStatus(ctx context.Context, id int, status, gateway string) error
 	LogSmsAttempt(ctx context.Context, msgId int, gateway, status, errorMsg string)
 }
+
+func NewNoSqlRepoFactory(ctx context.Context, uri string, dbName string) (NoSqlInterface, error) {
+	return repo_internal.NewMongo(ctx, uri, dbName)
+}
+
+type NoSqlInterface interface {
+	Close(ctx context.Context)
+	LogResponse(ctx context.Context, gatewayName string, response string)
+}

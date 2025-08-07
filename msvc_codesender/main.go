@@ -63,15 +63,21 @@ func main() {
 		"pool_max_conn_idle_time=15m&" +
 		"pool_health_check_period=1m"
 
-	repo, err := repo.NewRepoFactory(ctx, repoConn)
+	postgresRepo, err := repo.NewRepoFactory(ctx, repoConn)
 	if err != nil {
 		log.Fatalf("repo initialization failed with error: %v", err)
 	}
-	defer repo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+	defer postgresRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+
+	noSqlRepo, err := repo.NewNoSqlRepoFactory(ctx, "mongodb://admin:admin@localhost:27017", "logs")
+	if err != nil {
+		log.Fatalf("nosql initialization failed with error: %v", err)
+	}
+	defer noSqlRepo.Close(ctx)
 
 	transport := http_client.NewHTTPTransport()
 
-	svc := service.NewServiceFactory(repo)
+	svc := service.NewServiceFactory(postgresRepo)
 
 	// предусмотреть контекст!
 	// 1) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались. Чтоб не получилось так, что из кафки возьмем сообщение и завершимся. Нужно обязательно чтоб отправка происходила.
@@ -109,6 +115,7 @@ func main() {
 			URL:       gwCfg.URL,
 			Type:      gwCfg.Type,
 			Transport: transport,
+			Repo:      noSqlRepo,
 			Config:    gwCfg.Auth,
 		}
 

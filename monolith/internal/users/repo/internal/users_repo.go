@@ -18,19 +18,22 @@ type Postgres struct {
 }
 
 func NewPostgres(ctx context.Context, conn string) (*Postgres, error) {
+
+	// таймаут 30 сек если ctx не придет быстрее
+	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	config, err := pgxpool.ParseConfig(conn)
 	if err != nil {
 		return nil, errors.New("failed to parse db string with config")
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	pool, err := pgxpool.NewWithConfig(ctxTimeout, config)
 	if err != nil {
 		return nil, errors.New("failed to create pool")
 	}
 
-	// нужно проверить реальную связь с рулом, но может быть timeout поэтому подстраховываемся контекстом
-	ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+	// нужно проверить реальную связь с пулом
 
 	if err := pool.Ping(ctxTimeout); err != nil {
 		return nil, errors.New("pool ping failed")
