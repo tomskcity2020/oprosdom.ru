@@ -24,6 +24,7 @@ func NewRamRepoFactory(ctx context.Context, addr string) (RamRepoInterface, erro
 type RamRepoInterface interface {
 	Close()
 	Incr(ctx context.Context, k string) (int64, error)
-	Set(ctx context.Context, k string, v any, ttl time.Duration)
+	Set(ctx context.Context, k string, v any, ttl time.Duration) error
 	Get(ctx context.Context, k string) (string, error)
+	GetFew(ctx context.Context, keys []string) ([]any, error)
 }

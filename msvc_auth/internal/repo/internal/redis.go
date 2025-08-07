@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 type Redis struct {
@@ -18,7 +18,7 @@ func NewRedis(ctx context.Context, addr string) (*Redis, error) {
 	// таймаут 10 сек если ctx не придет быстрее
 	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	
+
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 	})
@@ -34,10 +34,12 @@ func (p *Redis) Close() {
 	p.client.Close()
 }
 
-func (p *Redis) Set(ctx context.Context, k string, v any, ttl time.Duration) {
+func (p *Redis) Set(ctx context.Context, k string, v any, ttl time.Duration) error {
 	if err := p.client.Set(ctx, k, v, ttl).Err(); err != nil {
 		log.Printf("redis SET failed: %v", err)
+		return err
 	}
+	return nil
 }
 
 func (p *Redis) Incr(ctx context.Context, k string) (int64, error) {
@@ -62,4 +64,13 @@ func (p *Redis) Get(ctx context.Context, k string) (string, error) {
 	}
 
 	return v, nil
+}
+
+func (p *Redis) GetFew(ctx context.Context, keys []string) ([]any, error) {
+	values, err := p.client.MGet(ctx, keys...).Result() // ... это раскрытие слайса, означает то, что нужно передать все элементы среза как отдельные аргументы, а не сам срез
+	if err != nil {
+		log.Printf("redis MGET failed: %v", err)
+		return nil, err
+	}
+	return values, nil
 }
