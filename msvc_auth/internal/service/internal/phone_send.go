@@ -2,17 +2,27 @@ package service_internal
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"math/rand"
 	"strconv"
 	"time"
 
 	"oprosdom.ru/msvc_auth/internal/models"
 	"oprosdom.ru/shared/models/pb"
 )
+
+func (s *ServiceStruct) generateCode() (uint32, error) {
+	var b [4]byte
+	if _, err := io.ReadFull(rand.Reader, b[:]); err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b[:])%9000 + 1000, nil
+}
 
 func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error {
 
@@ -98,7 +108,12 @@ func (s *ServiceStruct) PhoneSend(ctx context.Context, p *models.ValidatedPhoneS
 	} else {
 
 		// 3) генерируем код и создаем записи в redis'е (атомарность для записи неважна в этом конкретном случае, так как чтение будет происходить через достаточное время: пока отправится смс, пока доставится, пока клиент введет)
-		code := uint32(rand.Intn(9000) + 1000)
+		//code := uint32(rand.Intn(9000) + 1000)
+		// использовать некриптоскойкий алгоритм для верификации нельзя, могут скомпрометировать seed и вся смс идентификация насмарку
+		code, err := s.generateCode()
+		if err!=nil {
+			return nil
+		}
 
 		phoneCode := &models.PhoneCode{
 			Phone: p.Phone,
