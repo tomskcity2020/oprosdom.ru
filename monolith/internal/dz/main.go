@@ -11,10 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	// "oprosdom.ru/monolith/internal/dz/internal/handlers"
-	users_handlers "oprosdom.ru/monolith/internal/users/handlers"
-	users_repo "oprosdom.ru/monolith/internal/users/repo"
-	users_service "oprosdom.ru/monolith/internal/users/service"
+	"oprosdom.ru/monolith/internal/dz/internal/handlers"
+	"oprosdom.ru/monolith/internal/dz/internal/repo"
+	"oprosdom.ru/monolith/internal/dz/internal/service"
 )
 
 func main() {
@@ -22,27 +21,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	//////////////////////////////////////// USERS INITIALIZATION ////////////////////////////////////////
-
-	userRepoConn := "postgres://test:test@127.0.0.1:5432/users?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
-		"pool_max_conns=25&" +
-		"pool_max_conn_lifetime=30m&" +
-		"pool_max_conn_lifetime_jitter=5m&" +
-		"pool_max_conn_idle_time=15m&" +
-		"pool_health_check_period=1m"
-
-	usersRepo, err := users_repo.NewRepoFactory(ctx, userRepoConn)
+	repo, err := repo.NewRepoFactory(ctx, "postgres://test:test@127.0.0.1:5432/test?sslmode=disable")
 	if err != nil {
-		log.Fatalf("user repo initialization failed with error: %v", err)
+		log.Fatalf("repo initialization failed with error: %v", err)
 	}
-	defer usersRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+	defer repo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
 
-	usersService := users_service.NewServiceFactory(usersRepo)
-	usersHandler := users_handlers.NewHandler(usersService)
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	service := service.NewServiceFactory(repo)
+	h := handlers.NewHandler(service)
 
 	// предусмотреть контекст!
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах
@@ -61,18 +47,17 @@ func main() {
 	// curl -X POST "http://127.0.0.1:8080/api/member/b406690d-018a-4fb5-b1b7-70946b92432e/paydebt" -H "Content-Type: application/json" -d '{"kvartira_id":"f983de63-e4f3-483a-b9a2-6e1f3ea960b7","amount":"17500.55"}'
 
 	r := mux.NewRouter()
-	r.HandleFunc("/api/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
-	// verification/phonecode
-	// verification/bankcard
-	// r.HandleFunc("/api/kvartira", h.KvartiraAdd).Methods("POST")
-	// r.HandleFunc("/api/member/{id}", h.MemberUpdate).Methods("PUT")
-	// r.HandleFunc("/api/kvartira/{id}", h.KvartiraUpdate).Methods("PUT")
-	// r.HandleFunc("/api/members", h.MembersGet).Methods("GET")
-	// r.HandleFunc("/api/kvartiras", h.KvartirasGet).Methods("GET")
-	// r.HandleFunc("/api/member/{id}", h.MemberGet).Methods("GET")
-	// r.HandleFunc("/api/kvartira/{id}", h.KvartiraGet).Methods("GET")
-	// r.HandleFunc("/api/{mk}/{id}", h.RemoveById).Methods("DELETE")
-	// r.HandleFunc("/api/member/{id}/paydebt", h.PayDebt).Methods("POST")
+	r.HandleFunc("/", h.HomeHandler)
+	r.HandleFunc("/api/member", h.MemberAdd).Methods("POST")
+	r.HandleFunc("/api/kvartira", h.KvartiraAdd).Methods("POST")
+	r.HandleFunc("/api/member/{id}", h.MemberUpdate).Methods("PUT")
+	r.HandleFunc("/api/kvartira/{id}", h.KvartiraUpdate).Methods("PUT")
+	r.HandleFunc("/api/members", h.MembersGet).Methods("GET")
+	r.HandleFunc("/api/kvartiras", h.KvartirasGet).Methods("GET")
+	r.HandleFunc("/api/member/{id}", h.MemberGet).Methods("GET")
+	r.HandleFunc("/api/kvartira/{id}", h.KvartiraGet).Methods("GET")
+	r.HandleFunc("/api/{mk}/{id}", h.RemoveById).Methods("DELETE")
+	r.HandleFunc("/api/member/{id}/paydebt", h.PayDebt).Methods("POST")
 
 	srv := &http.Server{
 		Addr:    ":8080",
@@ -83,7 +68,6 @@ func main() {
 
 	errCh := make(chan error, 1)
 
-	// запускаем в отдельной горутине потому что ListenAndServe это блокирующий вызов, и без горутины мы до select никогдай не дойдем. А значит graceful shutdown не получится.
 	go func() {
 		log.Printf("Стартуем noTLS сервак на %v порту", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil {
@@ -101,8 +85,7 @@ func main() {
 			log.Fatalf("Возникла ошибка: %v", err)
 		}
 	case <-ctx.Done():
-		// мы не должны передавать ctx иначе shutdownCtx немедленно отменится при отмене ctx. Вместо этого делаем новый контекст, который даст 5 сек на довыполнение
-		shutdownCtx, shutdownCtxStop := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, shutdownCtxStop := context.WithTimeout(ctx, 5*time.Second)
 		defer shutdownCtxStop()
 
 		// Shutdown() перестанет принимать новые подключения, но завершит старые
@@ -114,33 +97,3 @@ func main() {
 	}
 
 }
-
-// package main
-
-// import (
-// 	"log"
-// 	"net/http"
-
-// 	"github.com/gorilla/mux"
-
-// 	core "oprosdom.ru/monolith/internal"
-// )
-
-// func main() {
-
-// 	// 	Вкратце схема такая:
-// 	// 1) вызываем rpc обработчик общий
-// 	// 2) он в зависимости от json-rpc метода выбирает спец обработчик и назначает ему соответствующий части приложения репозиторий
-// 	// 3) далее спец обработчик парсит и создает дто и проверяем
-// 	// 4) отдаем дто в сервисный слой
-// 	// 5) сервисный слой вызывает репозиторий и бизнес-логику
-
-// 	rpc_handler := core.NewJsonRpcHandler()
-
-// 	r := mux.NewRouter()
-// 	r.HandleFunc("/rpc", rpc_handler.RequestResponse).Methods("POST")
-
-// 	log.Println("JSON-RPC сервер запущен на порте 8080.")
-// 	log.Fatal(http.ListenAndServe(":8080", r))
-
-// }
