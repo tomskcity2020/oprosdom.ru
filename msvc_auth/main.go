@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,12 +19,27 @@ import (
 	"oprosdom.ru/msvc_auth/internal/repo"
 	"oprosdom.ru/msvc_auth/internal/service"
 	"oprosdom.ru/msvc_auth/internal/transport"
+	"oprosdom.ru/shared"
+)
+
+var (
+	privateKey *rsa.PrivateKey
+	keyID      string
 )
 
 func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	var err error // объявлеяем заранее так как := из-за глобальной переменной использовать мы не можем
+	privateKey, err = loadPrivateKey("private.pem")
+	if err != nil {
+		log.Fatalf("Failed to load private key: %v", err)
+	}
+
+	keyID = shared.GetPubkeyId(&privateKey.PublicKey)
+	log.Printf("KeyID: %s", keyID)
 
 	postgresConn := "postgres://test:test@127.0.0.1:5433/users?" +
 		"sslmode=disable&" +
@@ -104,4 +123,28 @@ func main() {
 		log.Println("Graceful Shutdown http сервера успешен")
 	}
 
+}
+
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	pemData, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read key file: %w", err)
+	}
+
+	block, _ := pem.Decode(pemData)
+	if block == nil {
+		return nil, errors.New("invalid PEM block")
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PKCS#8 key: %w", err)
+	}
+
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("not an RSA private key")
+	}
+
+	return rsaKey, nil
 }
