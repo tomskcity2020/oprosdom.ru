@@ -111,7 +111,7 @@ func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status": "Token issued in cookie"}`))
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode("success")
+	// w.WriteHeader(http.StatusCreated)
+	// json.NewEncoder(w).Encode("success")
 
 }
