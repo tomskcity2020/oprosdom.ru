@@ -66,3 +66,28 @@ func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode("success")
 
 }
+
+func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var unsafeCodeCheckReq models.UnsafeCodeCheckReq
+	if err := json.NewDecoder(r.Body).Decode(&unsafeCodeCheckReq); err != nil {
+		replyError(w, err, "incorrect_request", http.StatusBadRequest)
+		return
+	}
+
+	validatedCodeCheckReq, err := unsafeCodeCheckReq.Validate()
+	if err != nil {
+		replyError(w, err, "incorrect_phonesend", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.CodeCheck(r.Context(), validatedCodeCheckReq); err != nil {
+		replyError(w, err, "codecheck_wrong_request", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode("success")
+
+}

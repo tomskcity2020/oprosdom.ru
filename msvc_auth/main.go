@@ -52,17 +52,18 @@ func main() {
 	defer codeTransport.Close()
 
 	authService := service.NewServiceFactory(redis, postgres, codeTransport)
-	authHandler := handlers.NewHandler(authService)
+	h := handlers.NewHandler(authService)
 
 	// предусмотреть контекст!
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах (по сути перед затратными операциями нужно ловить отмену контекста)
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
 	// curl -X POST "http://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79191234567"}'
+	// curl -X POST "http://127.0.0.1/auth/code" -H "Content-Type: application/json" -d '{"phone":"+79191234567", "code":"1234"}'
 
 	r := mux.NewRouter()
-	r.HandleFunc("/auth/phone", authHandler.PhoneSend).Methods("POST")
-	// auth/code post
+	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")
+	r.HandleFunc("/auth/code", h.CodeCheck).Methods("POST")
 
 	srv := &http.Server{
 		Addr:    ":8081",

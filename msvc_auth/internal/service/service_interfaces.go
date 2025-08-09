@@ -12,6 +12,7 @@ import (
 
 type UsersService interface {
 	PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error
+	CodeCheck(ctx context.Context, p *models.ValidatedCodeCheckReq) error
 }
 
 // фабрика будет вызывать другой конструктор из internal service
