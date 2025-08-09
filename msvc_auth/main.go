@@ -41,7 +41,7 @@ func main() {
 
 	log.Printf("KeyID: %s", pubkeyId)
 
-	postgresConn := "postgres://test:test@127.0.0.1:5433/users?" +
+	postgresConn := "postgres://test:test@127.0.0.1:5433/auth?" +
 		"sslmode=disable&" +
 		"pool_min_conns=5&" +
 		"pool_max_conns=25&" +
@@ -77,8 +77,8 @@ func main() {
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах (по сути перед затратными операциями нужно ловить отмену контекста)
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
-	// curl -X POST "http://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79191234567"}'
-	// curl -X POST "http://127.0.0.1/auth/code" -H "Content-Type: application/json" -d '{"phone":"+79191234567", "code":1234}'
+	// curl -k -X POST "https://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79994951548"}'
+	// curl -c cookies.txt -k -X POST "https://127.0.0.1/auth/code" -H "Content-Type: application/json" -d '{"phone":"+79994951548", "code":1234}'
 
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")

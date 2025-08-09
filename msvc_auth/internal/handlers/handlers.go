@@ -77,9 +77,12 @@ func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unsafeCodeCheckReq.UserAgent = r.UserAgent()
+	unsafeCodeCheckReq.Ip = shared.IpHttpGet(r)
+
 	validatedCodeCheckReq, err := unsafeCodeCheckReq.Validate()
 	if err != nil {
-		replyError(w, err, "incorrect_phonesend", http.StatusBadRequest)
+		replyError(w, err, "codecheck_validation_failed", http.StatusBadRequest)
 		return
 	}
 
@@ -91,7 +94,7 @@ func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 	// 10 лет в часах (для jwt и куки)
 	tenYears := time.Hour * 24 * 365 * 10
 
-	jwtTokenStr, err := h.service.CreateJwt(tenYears)
+	jwtTokenStr, err := h.service.CreateJwt(r.Context(), tenYears, validatedCodeCheckReq)
 	if err != nil {
 		replyError(w, err, "create_token_failed", http.StatusInternalServerError)
 		return
@@ -110,8 +113,5 @@ func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status": "Token issued in cookie"}`))
-
-	// w.WriteHeader(http.StatusCreated)
-	// json.NewEncoder(w).Encode("success")
 
 }

@@ -14,7 +14,7 @@ import (
 type UsersService interface {
 	PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error
 	CodeCheck(ctx context.Context, p *models.ValidatedCodeCheckReq) error
-	CreateJwt(exp time.Duration) (string, error)
+	CreateJwt(ctx context.Context, exp time.Duration, v *models.ValidatedCodeCheckReq) (string, error)
 }
 
 // фабрика будет вызывать другой конструктор из internal service

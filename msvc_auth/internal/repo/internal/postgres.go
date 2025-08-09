@@ -46,20 +46,38 @@ func (p *Postgres) Close() {
 	p.pool.Close()
 }
 
-func (p *Postgres) PhoneSend(ctx context.Context, v *models.ValidatedPhoneSendReq) error {
-	// обращаем внимание на кавычки!!! они в sql специфические
-	const query = `INSERT INTO phonesend (phone, phone_type, useragent, ip) VALUES ($1, $2, $3, $4) RETURNING time`
+// func (p *Postgres) PhoneSend(ctx context.Context, v *models.ValidatedPhoneSendReq) error {
+// 	// обращаем внимание на кавычки!!! они в sql специфические
+// 	const query = `INSERT INTO phonesend (phone, phone_type, useragent, ip) VALUES ($1, $2, $3, $4) RETURNING time`
 
-	var time int
+// 	var time int
+
+// 	// брать соединение из пула и возвращать - не нужно, QueryRow делает это сама. Если несколько операций или транзакция, то вручную тогда берем и возвращаем
+// 	// QueryRow используется только если ожидается 0 или 1 строка!
+// 	err := p.pool.QueryRow(ctx, query, v.Phone, v.PhoneType, v.UserAgent, v.IP).Scan(&time)
+// 	if err != nil {
+// 		return errors.New("insert kvartira failed")
+// 	}
+
+// 	log.Printf("phonesend inserted phone %v on %v", v.Phone, time)
+
+// 	return nil
+// }
+
+func (p *Postgres) AddSignedToken(ctx context.Context, v *models.ValidatedCodeCheckReq, k *models.KeyData) error {
+	// обращаем внимание на кавычки!!! они в sql специфические
+	const query = `INSERT INTO signed_tokens (jti, alg, pubkey_id, ident, value, ip, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING created_at`
+
+	var createdAt time.Time
 
 	// брать соединение из пула и возвращать - не нужно, QueryRow делает это сама. Если несколько операций или транзакция, то вручную тогда берем и возвращаем
 	// QueryRow используется только если ожидается 0 или 1 строка!
-	err := p.pool.QueryRow(ctx, query, v.Phone, v.PhoneType, v.UserAgent, v.IP).Scan(&time)
+	err := p.pool.QueryRow(ctx, query, k.Jti, k.Alg, k.PubkeyId, "phone", v.Phone, v.IP, v.UserAgent).Scan(&createdAt)
 	if err != nil {
-		return errors.New("insert kvartira failed")
+		return errors.New("insert signed_tokens failed")
 	}
 
-	log.Printf("phonesend inserted phone %v on %v", v.Phone, time)
+	log.Printf("signed token inserted  %v on %v", v.Phone, createdAt)
 
 	return nil
 }

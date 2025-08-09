@@ -14,7 +14,7 @@ func NewRepoFactory(ctx context.Context, conn string) (RepositoryInterface, erro
 
 type RepositoryInterface interface {
 	Close()
-	PhoneSend(ctx context.Context, v *models.ValidatedPhoneSendReq) error
+	AddSignedToken(ctx context.Context, v *models.ValidatedCodeCheckReq, k *models.KeyData) error
 }
 
 func NewRamRepoFactory(ctx context.Context, addr string) (RamRepoInterface, error) {

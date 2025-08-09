@@ -1,6 +1,10 @@
 package models
 
-import "crypto/rsa"
+import (
+	"crypto/rsa"
+
+	"github.com/google/uuid"
+)
 
 type PhoneCode struct {
 	Phone string `json:"phone"`
@@ -10,4 +14,6 @@ type PhoneCode struct {
 type KeyData struct {
 	PrivateKey *rsa.PrivateKey
 	PubkeyId   string
+	Jti        uuid.UUID
+	Alg        string
 }
