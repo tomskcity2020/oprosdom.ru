@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"oprosdom.ru/msvc_auth/internal/biz"
 	"oprosdom.ru/msvc_auth/internal/models"
@@ -13,10 +14,11 @@ import (
 type UsersService interface {
 	PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error
 	CodeCheck(ctx context.Context, p *models.ValidatedCodeCheckReq) error
+	CreateJwt(exp time.Duration) (string, error)
 }
 
 // фабрика будет вызывать другой конструктор из internal service
-func NewServiceFactory(ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, codeTransport transport.TransportInterface) UsersService {
+func NewServiceFactory(key *models.KeyData, ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, codeTransport transport.TransportInterface) UsersService {
 	biz := biz.NewBizFactory()
-	return service_internal.NewCallInternalService(ramRepo, repo, biz, codeTransport)
+	return service_internal.NewCallInternalService(key, ramRepo, repo, biz, codeTransport)
 }

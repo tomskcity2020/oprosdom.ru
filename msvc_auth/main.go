@@ -16,15 +16,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"oprosdom.ru/msvc_auth/internal/handlers"
+	"oprosdom.ru/msvc_auth/internal/models"
 	"oprosdom.ru/msvc_auth/internal/repo"
 	"oprosdom.ru/msvc_auth/internal/service"
 	"oprosdom.ru/msvc_auth/internal/transport"
 	"oprosdom.ru/shared"
-)
-
-var (
-	privateKey *rsa.PrivateKey
-	keyID      string
 )
 
 func main() {
@@ -32,14 +28,18 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var err error // объявлеяем заранее так как := из-за глобальной переменной использовать мы не можем
-	privateKey, err = loadPrivateKey("private.pem")
+	privateKey, err := loadPrivateKey("private.pem")
 	if err != nil {
 		log.Fatalf("Failed to load private key: %v", err)
 	}
+	pubkeyId := shared.GetPubkeyId(&privateKey.PublicKey)
 
-	keyID = shared.GetPubkeyId(&privateKey.PublicKey)
-	log.Printf("KeyID: %s", keyID)
+	key := &models.KeyData{
+		PrivateKey: privateKey,
+		PubkeyId:   pubkeyId,
+	}
+
+	log.Printf("KeyID: %s", pubkeyId)
 
 	postgresConn := "postgres://test:test@127.0.0.1:5433/users?" +
 		"sslmode=disable&" +
@@ -70,7 +70,7 @@ func main() {
 	}
 	defer codeTransport.Close()
 
-	authService := service.NewServiceFactory(redis, postgres, codeTransport)
+	authService := service.NewServiceFactory(key, redis, postgres, codeTransport)
 	h := handlers.NewHandler(authService)
 
 	// предусмотреть контекст!
@@ -78,7 +78,7 @@ func main() {
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
 	// curl -X POST "http://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79191234567"}'
-	// curl -X POST "http://127.0.0.1/auth/code" -H "Content-Type: application/json" -d '{"phone":"+79191234567", "code":"1234"}'
+	// curl -X POST "http://127.0.0.1/auth/code" -H "Content-Type: application/json" -d '{"phone":"+79191234567", "code":1234}'
 
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")

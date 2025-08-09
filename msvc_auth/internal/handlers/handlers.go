@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"oprosdom.ru/msvc_auth/internal/models"
 	"oprosdom.ru/msvc_auth/internal/service"
@@ -86,6 +87,29 @@ func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 		replyError(w, err, "codecheck_wrong_request", http.StatusInternalServerError)
 		return
 	}
+
+	// 10 лет в часах (для jwt и куки)
+	tenYears := time.Hour * 24 * 365 * 10
+
+	jwtTokenStr, err := h.service.CreateJwt(tenYears)
+	if err != nil {
+		replyError(w, err, "create_token_failed", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth",
+		Value:    jwtTokenStr,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Now().AddDate(10, 0, 0), // 10 лет
+		MaxAge:   86400 * 365 * 10,             // 10 лет
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "Token issued in cookie"}`))
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode("success")

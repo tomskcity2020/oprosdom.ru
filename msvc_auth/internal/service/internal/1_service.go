@@ -14,14 +14,16 @@ import (
 )
 
 type ServiceStruct struct {
+	key           *models.KeyData
 	ramRepo       repo.RamRepoInterface
 	repo          repo.RepositoryInterface
 	biz           biz.BizInterface
 	codeTransport transport.TransportInterface
 }
 
-func NewCallInternalService(ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, biz biz.BizInterface, codeTransport transport.TransportInterface) *ServiceStruct {
+func NewCallInternalService(key *models.KeyData, ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, biz biz.BizInterface, codeTransport transport.TransportInterface) *ServiceStruct {
 	return &ServiceStruct{
+		key:           key,
 		ramRepo:       ramRepo,
 		repo:          repo,
 		biz:           biz,
