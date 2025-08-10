@@ -9,9 +9,10 @@ import (
 	"oprosdom.ru/msvc_auth/internal/repo"
 	service_internal "oprosdom.ru/msvc_auth/internal/service/internal"
 	"oprosdom.ru/msvc_auth/internal/transport"
+	"oprosdom.ru/shared/models/pb/access"
 )
 
-type UsersService interface {
+type Service interface {
 	PhoneSend(ctx context.Context, p *models.ValidatedPhoneSendReq) error
 	CodeCheck(ctx context.Context, p *models.ValidatedCodeCheckReq) error
 	CreateJwt(ctx context.Context, exp time.Duration, v *models.ValidatedCodeCheckReq) (string, error)
@@ -19,7 +20,7 @@ type UsersService interface {
 }
 
 // фабрика будет вызывать другой конструктор из internal service
-func NewServiceFactory(key *models.KeyData, ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, codeTransport transport.TransportInterface) UsersService {
+func NewServiceFactory(key *models.KeyData, ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, codeTransport transport.TransportInterface, accessClient access.AccessClient) Service {
 	biz := biz.NewBizFactory()
-	return service_internal.NewCallInternalService(key, ramRepo, repo, biz, codeTransport)
+	return service_internal.NewCallInternalService(key, ramRepo, repo, biz, codeTransport, accessClient)
 }

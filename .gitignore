@@ -7,3 +7,4 @@ msvc_codesender/.env
 test
 msvc_auth/private.pem
 msvc_auth/public.pem
+msvc_access/main.exe

@@ -1,0 +1,12 @@
+services:
+  redis:  # Добавленный Redis
+    image: redis:8.2-alpine
+    container_name: access_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_whitelist:/data
+    command: ["redis-server", "--save", "60", "1"]  # Сохранять на диск каждые 60 сек при 1+ изменениях
+
+volumes:
+  redis_whitelist:  # Том для Redis

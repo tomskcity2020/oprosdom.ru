@@ -21,6 +21,7 @@ import (
 	"oprosdom.ru/msvc_auth/internal/service"
 	"oprosdom.ru/msvc_auth/internal/transport"
 	"oprosdom.ru/shared"
+	"oprosdom.ru/shared/models/pb/access"
 )
 
 func main() {
@@ -70,7 +71,16 @@ func main() {
 	}
 	defer codeTransport.Close()
 
-	authService := service.NewServiceFactory(key, redis, postgres, codeTransport)
+	grpcClient := transport.NewGrpcClient("localhost:50051")
+	if err := grpcClient.Connect(ctx); err != nil {
+		log.Fatal(err)
+	}
+	defer grpcClient.Close()
+
+	// в сервис передаем NewAccessClient это автоматически сгенерированный конструктор, который возвращает объект с методами, которые будут исполняться на сервере grpc
+	accessClient := access.NewAccessClient(grpcClient.Connection())
+
+	authService := service.NewServiceFactory(key, redis, postgres, codeTransport, accessClient)
 	h := handlers.NewHandler(authService)
 
 	// предусмотреть контекст!
