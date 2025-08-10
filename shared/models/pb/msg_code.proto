@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "oprosdom.ru/shared/models/pb";
+
+message MsgCode {
+  string phone = 1; // формат e.194
+  uint32 code  = 2; // у нас возможны варианты от 1000 до 9999, этот тип экономичнее
+  uint32 retry = 3; // какая это попытка отправки сообшения
+}

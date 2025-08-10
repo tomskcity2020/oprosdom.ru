@@ -1,0 +1,150 @@
+package main
+
+import (
+	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gorilla/mux"
+	"oprosdom.ru/msvc_auth/internal/handlers"
+	"oprosdom.ru/msvc_auth/internal/models"
+	"oprosdom.ru/msvc_auth/internal/repo"
+	"oprosdom.ru/msvc_auth/internal/service"
+	"oprosdom.ru/msvc_auth/internal/transport"
+	"oprosdom.ru/shared"
+)
+
+func main() {
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	privateKey, err := loadPrivateKey("private.pem")
+	if err != nil {
+		log.Fatalf("Failed to load private key: %v", err)
+	}
+	pubkeyId := shared.GetPubkeyId(&privateKey.PublicKey)
+
+	key := &models.KeyData{
+		PrivateKey: privateKey,
+		PubkeyId:   pubkeyId,
+	}
+
+	log.Printf("KeyID: %s", pubkeyId)
+
+	postgresConn := "postgres://test:test@127.0.0.1:5433/auth?" +
+		"sslmode=disable&" +
+		"pool_min_conns=5&" +
+		"pool_max_conns=25&" +
+		"pool_max_conn_lifetime=30m&" +
+		"pool_max_conn_lifetime_jitter=5m&" +
+		"pool_max_conn_idle_time=15m&" +
+		"pool_health_check_period=1m"
+
+	// на будущее! чтоб не забыть! нельзя называть переменную также как пакет, иначе еще раз этот пакет не вызвать!
+	postgres, err := repo.NewRepoFactory(ctx, postgresConn)
+	if err != nil {
+		log.Fatalf("postgresql initialization failed with error: %v", err)
+	}
+	defer postgres.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+
+	redisAddr := "localhost:6379"
+	redis, err := repo.NewRamRepoFactory(ctx, redisAddr)
+	if err != nil {
+		log.Fatalf("redis initialization failed with error: %v", err)
+	}
+	defer redis.Close()
+
+	codeTransport, err := transport.NewTransportFactory(ctx, "localhost:9092", "code")
+	if err != nil {
+		log.Fatalf("codeTransport initialization failed with error: %v", err)
+	}
+	defer codeTransport.Close()
+
+	authService := service.NewServiceFactory(key, redis, postgres, codeTransport)
+	h := handlers.NewHandler(authService)
+
+	// предусмотреть контекст!
+	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах (по сути перед затратными операциями нужно ловить отмену контекста)
+	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
+
+	// curl -k -X POST "https://127.0.0.1/auth/phone" -H "Content-Type: application/json" -d '{"phone":"+79994951548"}'
+	// curl -c cookies.txt -k -X POST "https://127.0.0.1/auth/code" -H "Content-Type: application/json" -d '{"phone":"+79994951548", "code":1234}'
+
+	r := mux.NewRouter()
+	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")
+	r.HandleFunc("/auth/code", h.CodeCheck).Methods("POST")
+
+	srv := &http.Server{
+		Addr:    ":8081",
+		Handler: r,
+		// таймауты read/write тут не указываем потому что у нас вероятно будут вебсокеты на этом же порту, поэтому будем другими механизмами таймауты отслеживать
+		// хотя нужно изучить вопрос, ws это же не http, а поверх http
+	}
+
+	errCh := make(chan error, 1)
+
+	// запускаем в отдельной горутине потому что ListenAndServe это блокирующий вызов, и без горутины мы до select никогдай не дойдем. А значит graceful shutdown не получится.
+	go func() {
+		log.Printf("Стартуем noTLS микросервис AUTH на %v порту", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil {
+			errCh <- err
+		}
+	}()
+
+	// select блокирует программу до наступления одного из case. бесконечный for здесь смысла не имеет, так как select запускается единожды и результат любого case приводит к завершению программы
+	select {
+	case err := <-errCh: // присваиваем err значение из канала, область видимости только этот case
+		switch {
+		case errors.Is(err, http.ErrServerClosed):
+			log.Println("Сервак остановлен. Это не неожиданная ошибка, а ожидаемое поведение завершения")
+		default:
+			log.Fatalf("Возникла ошибка: %v", err)
+		}
+	case <-ctx.Done():
+		// мы не должны передавать ctx иначе shutdownCtx немедленно отменится при отмене ctx. Вместо этого делаем новый контекст, который даст 5 сек на довыполнение
+		shutdownCtx, shutdownCtxStop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCtxStop()
+
+		// Shutdown() перестанет принимать новые подключения, но завершит старые
+		// на заметку Shutdown() не ждёт завершения WS-соединений
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Graceful Shutdown http сервера не сработало, ошибка: %v", err)
+		}
+		log.Println("Graceful Shutdown http сервера успешен")
+	}
+
+}
+
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	pemData, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read key file: %w", err)
+	}
+
+	block, _ := pem.Decode(pemData)
+	if block == nil {
+		return nil, errors.New("invalid PEM block")
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PKCS#8 key: %w", err)
+	}
+
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("not an RSA private key")
+	}
+
+	return rsaKey, nil
+}

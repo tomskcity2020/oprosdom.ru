@@ -1,0 +1,9 @@
+commands.md
+monolith/cmd/main.exe
+msvc_auth/main.exe
+msvc_codesender/main.exe
+msvc_codesender/readme.md
+msvc_codesender/.env
+test
+msvc_auth/private.pem
+msvc_auth/public.pem
