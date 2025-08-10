@@ -74,3 +74,13 @@ func (p *Redis) GetFew(ctx context.Context, keys []string) ([]any, error) {
 	}
 	return values, nil
 }
+
+func (p *Redis) Del(ctx context.Context, k string) (int64, error) {
+	count, err := p.client.Del(ctx, k).Result()
+	if err != nil {
+		log.Printf("redis DEL failed: %v", err)
+		return 0, fmt.Errorf("redis DEL failed: %w", err)
+	}
+
+	return count, nil
+}

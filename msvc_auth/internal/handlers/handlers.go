@@ -111,6 +111,12 @@ func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   86400 * 365 * 10,             // 10 лет
 	})
 
+	// удаляем код, иначе могут 1 успешным кодом создать очень много токенов
+	if err := h.service.PurgeCode(r.Context(), validatedCodeCheckReq); err != nil {
+		// просто логируем, не прерываем выполнение
+		log.Printf("purgecode failed: %v", err.Error())
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status": "Token issued in cookie"}`))
 

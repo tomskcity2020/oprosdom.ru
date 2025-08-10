@@ -27,4 +27,5 @@ type RamRepoInterface interface {
 	Set(ctx context.Context, k string, v any, ttl time.Duration) error
 	Get(ctx context.Context, k string) (string, error)
 	GetFew(ctx context.Context, keys []string) ([]any, error)
+	Del(ctx context.Context, k string) (int64, error)
 }
