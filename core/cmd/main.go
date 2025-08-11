@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,21 +12,29 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+
 	// "oprosdom.ru/core/internal/dz/internal/handlers"
 	users_handlers "oprosdom.ru/core/internal/users/handlers"
 	users_repo "oprosdom.ru/core/internal/users/repo"
 	users_service "oprosdom.ru/core/internal/users/service"
 )
 
+var publicKey *rsa.PublicKey
+
 func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	if err := initPublicKey(); err != nil {
+		log.Fatalf("Failed to initialize public key: %v", err)
+	}
+
 	//////////////////////////////////////// USERS INITIALIZATION ////////////////////////////////////////
 
-	userRepoConn := "postgres://test:test@127.0.0.1:5432/users?" +
+	userRepoConn := "postgres://test:test@127.0.0.1:5435/users?" +
 		"sslmode=disable&" +
 		"pool_min_conns=5&" +
 		"pool_max_conns=25&" +
@@ -61,6 +71,7 @@ func main() {
 	// curl -X POST "http://127.0.0.1:8080/api/member/b406690d-018a-4fb5-b1b7-70946b92432e/paydebt" -H "Content-Type: application/json" -d '{"kvartira_id":"f983de63-e4f3-483a-b9a2-6e1f3ea960b7","amount":"17500.55"}'
 
 	r := mux.NewRouter()
+	r.Use(jwtMiddleware) // это применение промежуточного хендлера до вызова основного. Можем добавлять промеж хендлеры цепочкой
 	r.HandleFunc("/api/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
 	// verification/phonecode
 	// verification/bankcard
@@ -75,7 +86,7 @@ func main() {
 	// r.HandleFunc("/api/member/{id}/paydebt", h.PayDebt).Methods("POST")
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":8082",
 		Handler: r,
 		// таймауты read/write тут не указываем потому что у нас вероятно будут вебсокеты на этом же порту, поэтому будем другими механизмами таймауты отслеживать
 		// хотя нужно изучить вопрос, ws это же не http, а поверх http
@@ -115,32 +126,49 @@ func main() {
 
 }
 
-// package main
+func initPublicKey() error {
+	pubKeyPEM := `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwNoGHw2jZBJp77npZDc3
+uxM/uzEq8Gd4myO9+wQG8VeNlITOoXWBx77LRe2TXZQYyRc9jYudW3xH2WvZ49m2
+w8hnmCfwRA+tOkdzoosLnQ1dxom+kVbIXiDIefmmnoXhvnXEg9jAeB+csSnmyD+Q
+vsV1/U13/O7iRcnUxU3mkF5knEPwQ1GXUH9Aiv5YJC2JcEegsAq2hLCosd1eCytg
+A/9FMmyA7qWAQHlX3jai2p91SOtO6OROEmZ3MeaxTv0T4vforyqy+cPNaCS6GC3U
+Zt8jqQg7y5HEXpvvb60fp3hYge5FDa8Cug0wzMgitUTxZ8y4VtUofPuHCjB7YgBS
++QIDAQAB
+-----END PUBLIC KEY-----`
+	// pem.Decode отдельно делать не нужно, потому что под капотом ParseRSAPublicKeyFromPEM тот же pem.decode
+	pub, err := jwt.ParseRSAPublicKeyFromPEM([]byte(pubKeyPEM))
+	if err != nil {
+		return fmt.Errorf("failed to parse public key: %w", err)
+	}
+	publicKey = pub
+	log.Println("public key init success")
+	return nil
+}
 
-// import (
-// 	"log"
-// 	"net/http"
+func jwtMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("auth")
+		if err != nil {
+			// описание не возвращаем, в этом нет смысла в нашем случае
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-// 	"github.com/gorilla/mux"
+		token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+			// если приведение к типу не сработает, то будет ошибка. Обязательная проверка иначе могут в alg токена прислать что угодно
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, errors.New("unexpected jwt signing alg")
+			}
+			return publicKey, nil
+		})
 
-// 	core "oprosdom.ru/core/internal"
-// )
+		// если токен не прошел проверку подписи или истек - token.Valud будет false
+		if err != nil || !token.Valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-// func main() {
-
-// 	// 	Вкратце схема такая:
-// 	// 1) вызываем rpc обработчик общий
-// 	// 2) он в зависимости от json-rpc метода выбирает спец обработчик и назначает ему соответствующий части приложения репозиторий
-// 	// 3) далее спец обработчик парсит и создает дто и проверяем
-// 	// 4) отдаем дто в сервисный слой
-// 	// 5) сервисный слой вызывает репозиторий и бизнес-логику
-
-// 	rpc_handler := core.NewJsonRpcHandler()
-
-// 	r := mux.NewRouter()
-// 	r.HandleFunc("/rpc", rpc_handler.RequestResponse).Methods("POST")
-
-// 	log.Println("JSON-RPC сервер запущен на порте 8080.")
-// 	log.Fatal(http.ListenAndServe(":8080", r))
-
-// }
+		next.ServeHTTP(w, r)
+	})
+}
