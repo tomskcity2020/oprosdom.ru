@@ -1,0 +1,32 @@
+services:
+  polls_db:  # Development-версия (без SSL)
+    image: postgres:17-alpine
+    container_name: postgres_pollsdb
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: polls
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_pollsdb:/var/lib/postgresql/data
+      #pg_hba тоже можно заменять
+    command: ["postgres", "-c", "ssl=off"]
+
+  users_db:  # Development-версия (без SSL)
+    image: postgres:17-alpine
+    container_name: postgres_usersdb
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: users
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_usersdb:/var/lib/postgresql/data
+      #pg_hba тоже можно заменять
+    command: ["postgres", "-c", "ssl=off"]
+
+volumes:
+  postgres_pollsdb:
+  postgres_usersdb:

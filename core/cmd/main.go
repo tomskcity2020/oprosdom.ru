@@ -15,13 +15,21 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 
-	// "oprosdom.ru/core/internal/dz/internal/handlers"
+	polls_handlers "oprosdom.ru/core/internal/polls/handlers"
+	polls_repo "oprosdom.ru/core/internal/polls/repo"
+	polls_service "oprosdom.ru/core/internal/polls/service"
 	users_handlers "oprosdom.ru/core/internal/users/handlers"
 	users_repo "oprosdom.ru/core/internal/users/repo"
 	users_service "oprosdom.ru/core/internal/users/service"
 )
 
 var publicKey *rsa.PublicKey
+
+// TODO
+// func init() {
+//     // загрузка ключа при старте
+//     publicKey = initPublicKey()
+// }
 
 func main() {
 
@@ -54,36 +62,44 @@ func main() {
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	//////////////////////////////////////// POLLS INITIALIZATION ////////////////////////////////////////
+
+	pollsRepoConn := "postgres://test:test@127.0.0.1:5436/polls?" +
+		"sslmode=disable&" +
+		"pool_min_conns=5&" +
+		"pool_max_conns=25&" +
+		"pool_max_conn_lifetime=30m&" +
+		"pool_max_conn_lifetime_jitter=5m&" +
+		"pool_max_conn_idle_time=15m&" +
+		"pool_health_check_period=1m"
+
+	pollsRepo, err := polls_repo.NewRepoFactory(ctx, pollsRepoConn)
+	if err != nil {
+		log.Fatalf("polls repo initialization failed with error: %v", err)
+	}
+	defer pollsRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+
+	pollsService := polls_service.NewServiceFactory(pollsRepo)
+	pollsHandler := polls_handlers.NewHandler(pollsService)
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	// предусмотреть контекст!
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
-	// curl -X POST "http://127.0.0.1:8080/api/member" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
+	// curl -X POST "http://127.0.0.1:8082/api/poll/vote" -H "Content-Type: application/json" -d '{"poll_id":1,"vote":"za"}' -b cookies.txt
 	// curl -X POST "http://127.0.0.1:8080/api/kvartira" -H "Content-Type: application/json" -d '{"number":"115","komnat":2}'
 	// curl -X PUT "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
 	// curl -X PUT "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4" -H "Content-Type: application/json" -d '{"number":"12","komnat":3}'
-	// curl -X GET "http://127.0.0.1:8080/api/members" -H "Content-Type: application/json"
-	// curl -X GET "http://127.0.0.1:8080/api/kvartiras" -H "Content-Type: application/json"
-	// curl -X GET "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
-	// curl -X GET "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
-	// curl -X DELETE "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
-	// curl -X DELETE "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
-	// curl -X POST "http://127.0.0.1:8080/api/member/b406690d-018a-4fb5-b1b7-70946b92432e/paydebt" -H "Content-Type: application/json" -d '{"kvartira_id":"f983de63-e4f3-483a-b9a2-6e1f3ea960b7","amount":"17500.55"}'
+	// curl -X GET "http://127.0.0.1:8082/api/polls/stat" -H "Content-Type: application/json" -b cookies.txt
 
 	r := mux.NewRouter()
 	r.Use(jwtMiddleware) // это применение промежуточного хендлера до вызова основного. Можем добавлять промеж хендлеры цепочкой
 	r.HandleFunc("/api/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
-	// verification/phonecode
-	// verification/bankcard
-	// r.HandleFunc("/api/kvartira", h.KvartiraAdd).Methods("POST")
-	// r.HandleFunc("/api/member/{id}", h.MemberUpdate).Methods("PUT")
-	// r.HandleFunc("/api/kvartira/{id}", h.KvartiraUpdate).Methods("PUT")
-	// r.HandleFunc("/api/members", h.MembersGet).Methods("GET")
-	// r.HandleFunc("/api/kvartiras", h.KvartirasGet).Methods("GET")
-	// r.HandleFunc("/api/member/{id}", h.MemberGet).Methods("GET")
-	// r.HandleFunc("/api/kvartira/{id}", h.KvartiraGet).Methods("GET")
-	// r.HandleFunc("/api/{mk}/{id}", h.RemoveById).Methods("DELETE")
-	// r.HandleFunc("/api/member/{id}/paydebt", h.PayDebt).Methods("POST")
+	r.HandleFunc("/api/polls", pollsHandler.GetPolls).Methods("GET")
+	r.HandleFunc("/api/polls/stat", pollsHandler.PollStats).Methods("GET")
+	r.HandleFunc("/api/poll/vote", pollsHandler.Vote).Methods("POST")
 
 	srv := &http.Server{
 		Addr:    ":8082",
@@ -167,6 +183,15 @@ func jwtMiddleware(next http.Handler) http.Handler {
 		if err != nil || !token.Valid {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
+		}
+
+		// вообще считается антипаттерном, но пока не нашел способ как из мидлвары передать в основной хендлер
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if jti, exists := claims["jti"].(string); exists {
+				ctx := context.WithValue(r.Context(), "jti", jti)
+				r = r.WithContext(ctx)
+			}
 		}
 
 		next.ServeHTTP(w, r)

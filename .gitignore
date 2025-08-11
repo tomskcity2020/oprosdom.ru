@@ -8,3 +8,5 @@ test
 msvc_auth/private.pem
 msvc_auth/public.pem
 msvc_access/main.exe
+cookies.txt
+core/cmd/main.exe
