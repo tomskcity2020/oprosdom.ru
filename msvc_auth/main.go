@@ -34,6 +34,8 @@ import (
 	"oprosdom.ru/shared/models/pb/access"
 )
 
+var healthOK = []byte("OK\n") // заранее подготовленный ответ для health проверки k8s
+
 func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -103,6 +105,8 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")
 	r.HandleFunc("/auth/code", h.CodeCheck).Methods("POST")
+	// k8s health check
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	// Swagger UI
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
@@ -169,4 +173,13 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	}
 
 	return rsaKey, nil
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(healthOK)
 }

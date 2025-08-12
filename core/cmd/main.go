@@ -37,6 +37,7 @@ import (
 )
 
 var publicKey *rsa.PublicKey
+var healthOK = []byte("OK\n") // заранее подготовленный ответ для health проверки k8s
 
 // TODO
 // func init() {
@@ -118,7 +119,8 @@ func main() {
 	requireJwt.HandleFunc("/polls/stat", pollsHandler.PollStats).Methods("GET")
 	requireJwt.HandleFunc("/poll/vote", pollsHandler.Vote).Methods("POST")
 
-	// Swagger UI без middleware
+	// вне middleware
+	r.HandleFunc("/health", healthHandler).Methods("GET") // HandleFunc (задает точный путь)
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	srv := &http.Server{
@@ -216,4 +218,13 @@ func jwtMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(healthOK)
 }
