@@ -25,7 +25,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 
-	httpSwagger "github.com/swaggo/http-swagger"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 	_ "oprosdom.ru/swagger/core"
 
 	polls_handlers "oprosdom.ru/core/internal/polls/handlers"

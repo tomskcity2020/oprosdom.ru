@@ -21,7 +21,7 @@ import (
 	"syscall"
 	"time"
 
-	httpSwagger "github.com/swaggo/http-swagger"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 	_ "oprosdom.ru/swagger/auth"
 
 	"github.com/gorilla/mux"
