@@ -1,3 +1,10 @@
+// @title           AUTH API
+// @version         1.0
+// @description     Аутентификация и выдача токенов
+// @host            localhost:8081
+// @BasePath        /auth
+// @schemes         http
+
 package main
 
 import (
@@ -13,6 +20,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	httpSwagger "github.com/swaggo/http-swagger"
+	_ "oprosdom.ru/swagger/auth"
 
 	"github.com/gorilla/mux"
 	"oprosdom.ru/msvc_auth/internal/handlers"
@@ -93,6 +103,8 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")
 	r.HandleFunc("/auth/code", h.CodeCheck).Methods("POST")
+	// Swagger UI
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	srv := &http.Server{
 		Addr:    ":8081",

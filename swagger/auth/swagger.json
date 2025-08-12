@@ -1,0 +1,132 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Аутентификация и выдача токенов",
+        "title": "AUTH API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8081",
+    "basePath": "/auth",
+    "paths": {
+        "/code": {
+            "post": {
+                "description": "Принимает JSON с телефоном (E.164) и кодом (uint32), UserAgent и IP сервер подставляет для логирования и валидации. При успешной проверке в ответе устанавливается HttpOnly cookie \"auth\" с JWT токеном.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Проверка кода верификации и выдача JWT токена в куке",
+                "parameters": [
+                    {
+                        "description": "Данные для проверки кода: телефон и код",
+                        "name": "codeCheckReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UnsafeCodeCheckReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"status\": \"Token issued in cookie\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "incorrect_request или codecheck_validation_failed при ошибках валидации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "codecheck_wrong_request или create_token_failed при ошибках сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/phone": {
+            "post": {
+                "description": "Принимает JSON с номером телефона (в формате E.164), UserAgent и IP заполняются сервером для лимитирования.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Отправка SMS с кодом верификации на телефон",
+                "parameters": [
+                    {
+                        "description": "Данные для отправки кода на телефон. Только поле phone приходит от клиента",
+                        "name": "phoneSendReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UnsafePhoneSendReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "incorrect_request или incorrect_phonesend при ошибках валидации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "phonesend_wrong_request при ошибках сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.UnsafeCodeCheckReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UnsafePhoneSendReq": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

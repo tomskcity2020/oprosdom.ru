@@ -28,6 +28,16 @@ func replyError(w http.ResponseWriter, err error, publicErr string, statusCode i
 	json.NewEncoder(w).Encode(publicErr)
 }
 
+// GetPolls godoc
+// @Summary      Получить список опросов
+// @Description  Возвращает список доступных опросов с их ID и заголовками. Требует JWT в cookie 'auth'.
+// @Tags         polls
+// @Produce      json
+// @Success      200  {array}   polls_models.Poll   "Список опросов"
+// @Failure      401  {string}  string              "unauthorized — JWT не предоставлен или неверен"
+// @Failure      500  {string}  string              "something wrong with polls service"
+// @Security     CookieAuth
+// @Router       /polls [get]
 func (h *Handler) GetPolls(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
@@ -43,6 +53,19 @@ func (h *Handler) GetPolls(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Vote godoc
+// @Summary      Проголосовать в опросе
+// @Description  Отправляет голос пользователя за или против по конкретному опросу. Требует JWT в cookie 'auth'.
+// @Tags         polls
+// @Accept       json
+// @Produce      json
+// @Param        vote  body      polls_models.UnsafeVoteReq  true  "JSON с ID опроса и голосом"
+// @Success      200   {string}  string  "success"
+// @Failure      400   {string}  string  "incorrect_vote_request / vote_validation_failed"
+// @Failure      401   {string}  string  "unauthorized — JWT не предоставлен или неверен"
+// @Failure      500   {string}  string  "vote_wrong_service"
+// @Security     CookieAuth
+// @Router       /polls/vote [post]
 func (h *Handler) Vote(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
@@ -77,6 +100,16 @@ func (h *Handler) Vote(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// PollStats godoc
+// @Summary      Получить статистику по опросам
+// @Description  Возвращает статистику голосования по каждому опросу. Требует JWT в cookie 'auth'.
+// @Tags         polls
+// @Produce      json
+// @Success      200  {array}   polls_models.PollStats  "Массив статистики по опросам"
+// @Failure      401  {string}  string                  "unauthorized — JWT не предоставлен или неверен"
+// @Failure      500  {string}  string                  "something wrong with polls service"
+// @Security     CookieAuth
+// @Router       /polls/stats [get]
 func (h *Handler) PollStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")

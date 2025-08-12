@@ -1,3 +1,13 @@
+// @title           Core API
+// @version         1.0
+// @description     Аутентификация и выдача токенов осуществляется /auth
+// @host            localhost:8082
+// @BasePath        /api/v1
+// @schemes         http
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name auth
+
 package main
 
 import (
@@ -14,6 +24,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+
+	httpSwagger "github.com/swaggo/http-swagger"
+	_ "oprosdom.ru/swagger/core"
 
 	polls_handlers "oprosdom.ru/core/internal/polls/handlers"
 	polls_repo "oprosdom.ru/core/internal/polls/repo"
@@ -92,14 +105,21 @@ func main() {
 	// curl -X POST "http://127.0.0.1:8080/api/kvartira" -H "Content-Type: application/json" -d '{"number":"115","komnat":2}'
 	// curl -X PUT "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
 	// curl -X PUT "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4" -H "Content-Type: application/json" -d '{"number":"12","komnat":3}'
-	// curl -X GET "http://127.0.0.1:8082/api/polls/stat" -H "Content-Type: application/json" -b cookies.txt
+	// curl -X GET "http://127.0.0.1:8082/api/v1/polls/stat" -H "Content-Type: application/json" -b cookies.txt
 
 	r := mux.NewRouter()
-	r.Use(jwtMiddleware) // это применение промежуточного хендлера до вызова основного. Можем добавлять промеж хендлеры цепочкой
-	r.HandleFunc("/api/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
-	r.HandleFunc("/api/polls", pollsHandler.GetPolls).Methods("GET")
-	r.HandleFunc("/api/polls/stat", pollsHandler.PollStats).Methods("GET")
-	r.HandleFunc("/api/poll/vote", pollsHandler.Vote).Methods("POST")
+
+	requireJwt := r.PathPrefix("/api/v1").Subrouter()
+	requireJwt.Use(jwtMiddleware) // это применение промежуточного хендлера до вызова основного. Можем добавлять промеж хендлеры цепочкой
+
+	requireJwt.Use(jwtMiddleware)
+	requireJwt.HandleFunc("/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
+	requireJwt.HandleFunc("/polls", pollsHandler.GetPolls).Methods("GET")
+	requireJwt.HandleFunc("/polls/stat", pollsHandler.PollStats).Methods("GET")
+	requireJwt.HandleFunc("/poll/vote", pollsHandler.Vote).Methods("POST")
+
+	// Swagger UI без middleware
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	srv := &http.Server{
 		Addr:    ":8082",

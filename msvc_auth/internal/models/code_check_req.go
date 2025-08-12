@@ -10,8 +10,8 @@ import (
 type UnsafeCodeCheckReq struct {
 	Phone     string `json:"phone"`
 	Code      uint32 `json:"code"`
-	UserAgent string // в codecheck используется для записи в postgresql
-	Ip        string // в codecheck используется для записи в postgresql
+	UserAgent string `swaggerignore:"true"` // в codecheck используется для записи в postgresql
+	Ip        string `swaggerignore:"true"` // в codecheck используется для записи в postgresql
 }
 
 func (u *UnsafeCodeCheckReq) Validate() (*ValidatedCodeCheckReq, error) {

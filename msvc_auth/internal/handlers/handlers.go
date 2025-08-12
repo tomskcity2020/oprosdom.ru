@@ -30,6 +30,17 @@ func replyError(w http.ResponseWriter, err error, publicErr string, statusCode i
 	json.NewEncoder(w).Encode(publicErr)
 }
 
+// PhoneSend godoc
+// @Summary      Отправка SMS с кодом верификации на телефон
+// @Description  Принимает JSON с номером телефона (в формате E.164), UserAgent и IP заполняются сервером для лимитирования.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        phoneSendReq  body      models.UnsafePhoneSendReq  true  "Данные для отправки кода на телефон. Только поле phone приходит от клиента"
+// @Success      201  {string}  string  "success"
+// @Failure      400  {string}  string  "incorrect_request или incorrect_phonesend при ошибках валидации"
+// @Failure      500  {string}  string  "phonesend_wrong_request при ошибках сервера"
+// @Router       /phone [post]
 func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 
 	// 1) парсим json
@@ -68,6 +79,17 @@ func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// CodeCheck godoc
+// @Summary      Проверка кода верификации и выдача JWT токена в куке
+// @Description  Принимает JSON с телефоном (E.164) и кодом (uint32), UserAgent и IP сервер подставляет для логирования и валидации. При успешной проверке в ответе устанавливается HttpOnly cookie "auth" с JWT токеном.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        codeCheckReq  body      models.UnsafeCodeCheckReq  true  "Данные для проверки кода: телефон и код"
+// @Success      200  {object}  map[string]string  "{"status": "Token issued in cookie"}"
+// @Failure      400  {string}  string  "incorrect_request или codecheck_validation_failed при ошибках валидации"
+// @Failure      500  {string}  string  "codecheck_wrong_request или create_token_failed при ошибках сервера"
+// @Router       /code [post]
 func (h *Handler) CodeCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
