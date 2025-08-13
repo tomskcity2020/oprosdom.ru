@@ -19,12 +19,23 @@ import (
 	http_client "oprosdom.ru/msvc_codesender/internal/transport/http"
 )
 
+func init() {
+	// в проде не будет .env файла, поэтому делаем такую проверку: на локале берется .env, в проде из k8s
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, relying on environment variables")
+	}
+}
+
 func main() {
 
-	// Загружаем .env файл
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	zimaURL := os.Getenv("ZIMA_URL")
+	zimaKey := os.Getenv("ZIMA_KEY")
+	zimaDevice := os.Getenv("ZIMA_DEVICE")
+
+	// // Загружаем .env файл
+	// if err := godotenv.Load(); err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 
 	cfg := models.Config{
 		WorkerInterval: 5 * time.Second,
@@ -32,21 +43,21 @@ func main() {
 		Gateways: []models.GatewayConfig{
 			{
 				Name: "Zima1reg",
-				URL:  os.Getenv("ZIMA_URL"),
+				URL:  zimaURL,
 				Type: "regular",
-				Auth: map[string]string{"token": os.Getenv("ZIMA_KEY"), "device": os.Getenv("ZIMA_DEVICE")},
+				Auth: map[string]string{"token": zimaKey, "device": zimaDevice},
 			},
 			{
 				Name: "Zima2reg",
-				URL:  os.Getenv("ZIMA_URL"),
+				URL:  zimaURL,
 				Type: "regular",
-				Auth: map[string]string{"token": os.Getenv("ZIMA_KEY"), "device": os.Getenv("ZIMA_DEVICE")},
+				Auth: map[string]string{"token": zimaKey, "device": zimaDevice},
 			},
 			{
 				Name: "Zima3prem",
-				URL:  os.Getenv("ZIMA_URL"),
+				URL:  zimaURL,
 				Type: "premium",
-				Auth: map[string]string{"token": os.Getenv("ZIMA_KEY"), "device": os.Getenv("ZIMA_DEVICE")},
+				Auth: map[string]string{"token": zimaKey, "device": zimaDevice},
 			},
 		},
 	}

@@ -41,7 +41,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	privateKey, err := loadPrivateKey("private.pem")
+	keyPath := os.Getenv("PRIVATE_KEY_PATH")
+	if keyPath == "" {
+		keyPath = "private.pem" // fallback для локальной разработки
+	}
+
+	privateKey, err := loadPrivateKey(keyPath)
+
 	if err != nil {
 		log.Fatalf("Failed to load private key: %v", err)
 	}
