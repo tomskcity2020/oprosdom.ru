@@ -1,5 +1,5 @@
 commands.md
-monolith/cmd/main.exe
+core/cmd/main.exe
 msvc_auth/main.exe
 msvc_codesender/main.exe
 msvc_codesender/readme.md
@@ -7,3 +7,9 @@ msvc_codesender/.env
 test
 msvc_auth/private.pem
 msvc_auth/public.pem
+msvc_access/main.exe
+cookies.txt
+core/cmd/main.exe
+deploy/k8s/README.md
+core/cmd/main.exe
+msvc_codesender/deploy/docker-compose.yml

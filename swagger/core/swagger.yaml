@@ -1,0 +1,129 @@
+basePath: /api/v1
+definitions:
+  polls_models.Poll:
+    properties:
+      id:
+        type: integer
+      title:
+        type: string
+    type: object
+  polls_models.PollStats:
+    properties:
+      poll_id:
+        type: integer
+      protiv_count:
+        type: integer
+      za_count:
+        type: integer
+    type: object
+  polls_models.UnsafeVoteReq:
+    properties:
+      poll_id:
+        type: integer
+      vote:
+        type: string
+    type: object
+host: localhost:8082
+info:
+  contact: {}
+  description: Аутентификация и выдача токенов осуществляется /auth
+  title: Core API
+  version: "1.0"
+paths:
+  /polls:
+    get:
+      description: Возвращает список доступных опросов с их ID и заголовками. Требует
+        JWT в cookie 'auth'.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список опросов
+          schema:
+            items:
+              $ref: '#/definitions/polls_models.Poll'
+            type: array
+        "401":
+          description: unauthorized — JWT не предоставлен или неверен
+          schema:
+            type: string
+        "500":
+          description: something wrong with polls service
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      summary: Получить список опросов
+      tags:
+      - polls
+  /polls/stats:
+    get:
+      description: Возвращает статистику голосования по каждому опросу. Требует JWT
+        в cookie 'auth'.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Массив статистики по опросам
+          schema:
+            items:
+              $ref: '#/definitions/polls_models.PollStats'
+            type: array
+        "401":
+          description: unauthorized — JWT не предоставлен или неверен
+          schema:
+            type: string
+        "500":
+          description: something wrong with polls service
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      summary: Получить статистику по опросам
+      tags:
+      - polls
+  /polls/vote:
+    post:
+      consumes:
+      - application/json
+      description: Отправляет голос пользователя за или против по конкретному опросу.
+        Требует JWT в cookie 'auth'.
+      parameters:
+      - description: JSON с ID опроса и голосом
+        in: body
+        name: vote
+        required: true
+        schema:
+          $ref: '#/definitions/polls_models.UnsafeVoteReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            type: string
+        "400":
+          description: incorrect_vote_request / vote_validation_failed
+          schema:
+            type: string
+        "401":
+          description: unauthorized — JWT не предоставлен или неверен
+          schema:
+            type: string
+        "500":
+          description: vote_wrong_service
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      summary: Проголосовать в опросе
+      tags:
+      - polls
+schemes:
+- http
+securityDefinitions:
+  CookieAuth:
+    in: cookie
+    name: auth
+    type: apiKey
+swagger: "2.0"

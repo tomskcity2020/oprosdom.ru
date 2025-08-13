@@ -1,0 +1,92 @@
+basePath: /auth
+definitions:
+  models.UnsafeCodeCheckReq:
+    properties:
+      code:
+        type: integer
+      phone:
+        type: string
+    type: object
+  models.UnsafePhoneSendReq:
+    properties:
+      phone:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: Аутентификация и выдача токенов
+  title: AUTH API
+  version: "1.0"
+paths:
+  /code:
+    post:
+      consumes:
+      - application/json
+      description: Принимает JSON с телефоном (E.164) и кодом (uint32), UserAgent
+        и IP сервер подставляет для логирования и валидации. При успешной проверке
+        в ответе устанавливается HttpOnly cookie "auth" с JWT токеном.
+      parameters:
+      - description: 'Данные для проверки кода: телефон и код'
+        in: body
+        name: codeCheckReq
+        required: true
+        schema:
+          $ref: '#/definitions/models.UnsafeCodeCheckReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"status": "Token issued in cookie"}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: incorrect_request или codecheck_validation_failed при ошибках
+            валидации
+          schema:
+            type: string
+        "500":
+          description: codecheck_wrong_request или create_token_failed при ошибках
+            сервера
+          schema:
+            type: string
+      summary: Проверка кода верификации и выдача JWT токена в куке
+      tags:
+      - auth
+  /phone:
+    post:
+      consumes:
+      - application/json
+      description: Принимает JSON с номером телефона (в формате E.164), UserAgent
+        и IP заполняются сервером для лимитирования.
+      parameters:
+      - description: Данные для отправки кода на телефон. Только поле phone приходит
+          от клиента
+        in: body
+        name: phoneSendReq
+        required: true
+        schema:
+          $ref: '#/definitions/models.UnsafePhoneSendReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: success
+          schema:
+            type: string
+        "400":
+          description: incorrect_request или incorrect_phonesend при ошибках валидации
+          schema:
+            type: string
+        "500":
+          description: phonesend_wrong_request при ошибках сервера
+          schema:
+            type: string
+      summary: Отправка SMS с кодом верификации на телефон
+      tags:
+      - auth
+schemes:
+- http
+swagger: "2.0"

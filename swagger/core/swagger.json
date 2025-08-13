@@ -1,0 +1,198 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Аутентификация и выдача токенов осуществляется /auth",
+        "title": "Core API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8082",
+    "basePath": "/api/v1",
+    "paths": {
+        "/polls": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает список доступных опросов с их ID и заголовками. Требует JWT в cookie 'auth'.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "summary": "Получить список опросов",
+                "responses": {
+                    "200": {
+                        "description": "Список опросов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/polls_models.Poll"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized — JWT не предоставлен или неверен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "something wrong with polls service",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/polls/stats": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает статистику голосования по каждому опросу. Требует JWT в cookie 'auth'.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "summary": "Получить статистику по опросам",
+                "responses": {
+                    "200": {
+                        "description": "Массив статистики по опросам",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/polls_models.PollStats"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized — JWT не предоставлен или неверен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "something wrong with polls service",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/polls/vote": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Отправляет голос пользователя за или против по конкретному опросу. Требует JWT в cookie 'auth'.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "polls"
+                ],
+                "summary": "Проголосовать в опросе",
+                "parameters": [
+                    {
+                        "description": "JSON с ID опроса и голосом",
+                        "name": "vote",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/polls_models.UnsafeVoteReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "incorrect_vote_request / vote_validation_failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized — JWT не предоставлен или неверен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "vote_wrong_service",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "polls_models.Poll": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "polls_models.PollStats": {
+            "type": "object",
+            "properties": {
+                "poll_id": {
+                    "type": "integer"
+                },
+                "protiv_count": {
+                    "type": "integer"
+                },
+                "za_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "polls_models.UnsafeVoteReq": {
+            "type": "object",
+            "properties": {
+                "poll_id": {
+                    "type": "integer"
+                },
+                "vote": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "CookieAuth": {
+            "type": "apiKey",
+            "name": "auth",
+            "in": "cookie"
+        }
+    }
+}

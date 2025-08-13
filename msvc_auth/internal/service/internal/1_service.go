@@ -11,6 +11,7 @@ import (
 	"oprosdom.ru/msvc_auth/internal/models"
 	"oprosdom.ru/msvc_auth/internal/repo"
 	"oprosdom.ru/msvc_auth/internal/transport"
+	"oprosdom.ru/shared/models/pb/access"
 )
 
 type ServiceStruct struct {
@@ -19,19 +20,21 @@ type ServiceStruct struct {
 	repo          repo.RepositoryInterface
 	biz           biz.BizInterface
 	codeTransport transport.TransportInterface
+	accessClient  access.AccessClient
 }
 
-func NewCallInternalService(key *models.KeyData, ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, biz biz.BizInterface, codeTransport transport.TransportInterface) *ServiceStruct {
+func NewCallInternalService(key *models.KeyData, ramRepo repo.RamRepoInterface, repo repo.RepositoryInterface, biz biz.BizInterface, codeTransport transport.TransportInterface, accessClient access.AccessClient) *ServiceStruct {
 	return &ServiceStruct{
 		key:           key,
 		ramRepo:       ramRepo,
 		repo:          repo,
 		biz:           biz,
 		codeTransport: codeTransport,
+		accessClient:  accessClient,
 	}
 }
 
-func (*ServiceStruct) parsePhoneCode(value any) (*models.PhoneCode, error) {
+func (s *ServiceStruct) parsePhoneCode(value any) (*models.PhoneCode, error) {
 	log.Printf("parsePhoneCode input type=%T value=%#v", value, value)
 	strVal, ok := value.(string)
 	if !ok {
@@ -51,7 +54,7 @@ func (*ServiceStruct) parsePhoneCode(value any) (*models.PhoneCode, error) {
 	return &phoneCode, nil
 }
 
-func (*ServiceStruct) parseUint32(value any) (uint32, error) {
+func (s *ServiceStruct) parseUint32(value any) (uint32, error) {
 	log.Printf("parseuint32 input type=%T value=%#v", value, value)
 	strVal, ok := value.(string)
 	if !ok {

@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package access;
+
+option go_package = "oprosdom.ru/shared/models/pb/access";
+
+message SendRequest {
+  string jti = 1;
+}
+
+message SendResponse {
+  bool success = 1;
+}
+
+service Access {
+  rpc AddWhitelist (SendRequest) returns (SendResponse);
+}
