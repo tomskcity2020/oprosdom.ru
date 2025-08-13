@@ -28,6 +28,10 @@ func init() {
 
 func main() {
 
+	postgresDbURI := os.Getenv("POSTGRES_DB_URI")
+	mongoDbURI := os.Getenv("MONGO_DB_URI")
+	kafkaURI := os.Getenv("KAFKA_URI")
+
 	zimaURL := os.Getenv("ZIMA_URL")
 	zimaKey := os.Getenv("ZIMA_KEY")
 	zimaDevice := os.Getenv("ZIMA_DEVICE")
@@ -65,9 +69,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	repoConn := "postgres://test:test@127.0.0.1:5432/notify?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	repoConn := postgresDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +
@@ -80,7 +83,7 @@ func main() {
 	}
 	defer postgresRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
 
-	noSqlRepo, err := repo.NewNoSqlRepoFactory(ctx, "mongodb://admin:admin@localhost:27017", "logs")
+	noSqlRepo, err := repo.NewNoSqlRepoFactory(ctx, mongoDbURI, "logs")
 	if err != nil {
 		log.Fatalf("nosql initialization failed with error: %v", err)
 	}
@@ -94,7 +97,7 @@ func main() {
 	// 1) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались. Чтоб не получилось так, что из кафки возьмем сообщение и завершимся. Нужно обязательно чтоб отправка происходила.
 
 	// в случае с http сервером мы загоняли сервис в хендлер, здесь же мы загоняем сервис в kafkaConsumer
-	kafkaConsumer := handlers.NewConsumer([]string{"localhost:9092"}, "code", "for_notify", svc)
+	kafkaConsumer := handlers.NewConsumer([]string{kafkaURI}, "code", "for_notify", svc)
 
 	// Горутина для запуска и перезапуска Kafka consumer
 	go func() {

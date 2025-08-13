@@ -54,11 +54,17 @@ func main() {
 		log.Fatalf("Failed to initialize public key: %v", err)
 	}
 
+	usersDbURI := os.Getenv("USERS_DB_URI")
+	pollsDbURI := os.Getenv("POLLS_DB_URI")
+
+	if usersDbURI == "" || pollsDbURI == "" {
+		log.Fatal("Не заданы переменные окружения USERS_DB_URI или POLLS_DB_URI")
+	}
+
 	//////////////////////////////////////// USERS INITIALIZATION ////////////////////////////////////////
 
-	userRepoConn := "postgres://test:test@127.0.0.1:5435/users?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	userRepoConn := usersDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +
@@ -78,9 +84,8 @@ func main() {
 
 	//////////////////////////////////////// POLLS INITIALIZATION ////////////////////////////////////////
 
-	pollsRepoConn := "postgres://test:test@127.0.0.1:5436/polls?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	pollsRepoConn := pollsDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +

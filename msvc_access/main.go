@@ -29,7 +29,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	redisAddr := "localhost:6380"
+	redisAddr := os.Getenv("REDIS_URI")
+
 	redis, err := repo.NewRamRepoFactory(ctx, redisAddr)
 	if err != nil {
 		log.Fatalf("redis initialization failed with error: %v", err)

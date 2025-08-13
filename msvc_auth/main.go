@@ -41,6 +41,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	authDbURI := os.Getenv("AUTH_DB_URI")
+	redisAddr := os.Getenv("REDIS_URI")
+	kafkaURI := os.Getenv("KAFKA_URI")
+	msvcAccessURI := os.Getenv("MSVC_ACCESS_URI")
+
 	keyPath := os.Getenv("PRIVATE_KEY_PATH")
 	if keyPath == "" {
 		keyPath = "private.pem" // fallback для локальной разработки
@@ -60,9 +65,8 @@ func main() {
 
 	log.Printf("KeyID: %s", pubkeyId)
 
-	postgresConn := "postgres://test:test@127.0.0.1:5433/auth?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	postgresConn := authDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +
@@ -76,20 +80,19 @@ func main() {
 	}
 	defer postgres.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
 
-	redisAddr := "localhost:6379"
 	redis, err := repo.NewRamRepoFactory(ctx, redisAddr)
 	if err != nil {
 		log.Fatalf("redis initialization failed with error: %v", err)
 	}
 	defer redis.Close()
 
-	codeTransport, err := transport.NewTransportFactory(ctx, "localhost:9092", "code")
+	codeTransport, err := transport.NewTransportFactory(ctx, kafkaURI, "code")
 	if err != nil {
 		log.Fatalf("codeTransport initialization failed with error: %v", err)
 	}
 	defer codeTransport.Close()
 
-	grpcClient := transport.NewGrpcClient("localhost:50051")
+	grpcClient := transport.NewGrpcClient(msvcAccessURI)
 	if err := grpcClient.Connect(ctx); err != nil {
 		log.Fatal(err)
 	}

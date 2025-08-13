@@ -1,12 +1,30 @@
+networks:
+  shared_network:
+    external: true
+
 services:
-  redis:  # Добавленный Redis
+
+  app:
+    image: msvc_access:latest
+    container_name: msvc_access
+    depends_on:
+      - access_redis
+    environment:
+      REDIS_URI: "access_redis:6379" # порт указываем тот что внутренний для этого контейнера, а не тот который для хоста
+    ports:
+      - "50051:50051"
+    networks:
+      - shared_network
+  access_redis:  # Добавленный Redis
     image: redis:8.2-alpine
     container_name: access_redis
     ports:
       - "6380:6379"
     volumes:
-      - redis_whitelist:/data
+      - access_redis:/data
     command: ["redis-server", "--save", "60", "1"]  # Сохранять на диск каждые 60 сек при 1+ изменениях
+    networks:
+      - shared_network
 
 volumes:
-  redis_whitelist:  # Том для Redis
+  access_redis:
