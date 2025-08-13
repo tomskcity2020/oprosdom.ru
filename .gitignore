@@ -12,4 +12,4 @@ cookies.txt
 core/cmd/main.exe
 deploy/k8s/README.md
 core/cmd/main.exe
-.gitignore
+msvc_codesender/deploy/docker-compose.yml
