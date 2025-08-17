@@ -1,3 +1,10 @@
+// @title           AUTH API
+// @version         1.0
+// @description     Аутентификация и выдача токенов
+// @host            localhost:8081
+// @BasePath        /auth
+// @schemes         http
+
 package main
 
 import (
@@ -14,6 +21,9 @@ import (
 	"syscall"
 	"time"
 
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+	_ "oprosdom.ru/swagger/auth"
+
 	"github.com/gorilla/mux"
 	"oprosdom.ru/msvc_auth/internal/handlers"
 	"oprosdom.ru/msvc_auth/internal/models"
@@ -21,14 +31,28 @@ import (
 	"oprosdom.ru/msvc_auth/internal/service"
 	"oprosdom.ru/msvc_auth/internal/transport"
 	"oprosdom.ru/shared"
+	"oprosdom.ru/shared/models/pb/access"
 )
+
+var healthOK = []byte("OK\n") // заранее подготовленный ответ для health проверки k8s
 
 func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	privateKey, err := loadPrivateKey("private.pem")
+	authDbURI := os.Getenv("AUTH_DB_URI")
+	redisAddr := os.Getenv("REDIS_URI")
+	kafkaURI := os.Getenv("KAFKA_URI")
+	msvcAccessURI := os.Getenv("MSVC_ACCESS_URI")
+
+	keyPath := os.Getenv("PRIVATE_KEY_PATH")
+	if keyPath == "" {
+		keyPath = "private.pem" // fallback для локальной разработки
+	}
+
+	privateKey, err := loadPrivateKey(keyPath)
+
 	if err != nil {
 		log.Fatalf("Failed to load private key: %v", err)
 	}
@@ -41,9 +65,8 @@ func main() {
 
 	log.Printf("KeyID: %s", pubkeyId)
 
-	postgresConn := "postgres://test:test@127.0.0.1:5433/auth?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	postgresConn := authDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +
@@ -57,20 +80,28 @@ func main() {
 	}
 	defer postgres.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
 
-	redisAddr := "localhost:6379"
 	redis, err := repo.NewRamRepoFactory(ctx, redisAddr)
 	if err != nil {
 		log.Fatalf("redis initialization failed with error: %v", err)
 	}
 	defer redis.Close()
 
-	codeTransport, err := transport.NewTransportFactory(ctx, "localhost:9092", "code")
+	codeTransport, err := transport.NewTransportFactory(ctx, kafkaURI, "code")
 	if err != nil {
 		log.Fatalf("codeTransport initialization failed with error: %v", err)
 	}
 	defer codeTransport.Close()
 
-	authService := service.NewServiceFactory(key, redis, postgres, codeTransport)
+	grpcClient := transport.NewGrpcClient(msvcAccessURI)
+	if err := grpcClient.Connect(ctx); err != nil {
+		log.Fatal(err)
+	}
+	defer grpcClient.Close()
+
+	// в сервис передаем NewAccessClient это автоматически сгенерированный конструктор, который возвращает объект с методами, которые будут исполняться на сервере grpc
+	accessClient := access.NewAccessClient(grpcClient.Connection())
+
+	authService := service.NewServiceFactory(key, redis, postgres, codeTransport, accessClient)
 	h := handlers.NewHandler(authService)
 
 	// предусмотреть контекст!
@@ -83,6 +114,10 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/phone", h.PhoneSend).Methods("POST")
 	r.HandleFunc("/auth/code", h.CodeCheck).Methods("POST")
+	// k8s health check
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+	// Swagger UI
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	srv := &http.Server{
 		Addr:    ":8081",
@@ -147,4 +182,13 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	}
 
 	return rsaKey, nil
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(healthOK)
 }

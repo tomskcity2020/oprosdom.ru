@@ -19,12 +19,27 @@ import (
 	http_client "oprosdom.ru/msvc_codesender/internal/transport/http"
 )
 
+func init() {
+	// в проде не будет .env файла, поэтому делаем такую проверку: на локале берется .env, в проде из k8s
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, relying on environment variables")
+	}
+}
+
 func main() {
 
-	// Загружаем .env файл
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	postgresDbURI := os.Getenv("POSTGRES_DB_URI")
+	mongoDbURI := os.Getenv("MONGO_DB_URI")
+	kafkaURI := os.Getenv("KAFKA_URI")
+
+	zimaURL := os.Getenv("ZIMA_URL")
+	zimaKey := os.Getenv("ZIMA_KEY")
+	zimaDevice := os.Getenv("ZIMA_DEVICE")
+
+	// // Загружаем .env файл
+	// if err := godotenv.Load(); err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 
 	cfg := models.Config{
 		WorkerInterval: 5 * time.Second,
@@ -32,21 +47,21 @@ func main() {
 		Gateways: []models.GatewayConfig{
 			{
 				Name: "Zima1reg",
-				URL:  os.Getenv("ZIMA_URL"),
+				URL:  zimaURL,
 				Type: "regular",
-				Auth: map[string]string{"token": os.Getenv("ZIMA_KEY"), "device": os.Getenv("ZIMA_DEVICE")},
+				Auth: map[string]string{"token": zimaKey, "device": zimaDevice},
 			},
 			{
 				Name: "Zima2reg",
-				URL:  os.Getenv("ZIMA_URL"),
+				URL:  zimaURL,
 				Type: "regular",
-				Auth: map[string]string{"token": os.Getenv("ZIMA_KEY"), "device": os.Getenv("ZIMA_DEVICE")},
+				Auth: map[string]string{"token": zimaKey, "device": zimaDevice},
 			},
 			{
 				Name: "Zima3prem",
-				URL:  os.Getenv("ZIMA_URL"),
+				URL:  zimaURL,
 				Type: "premium",
-				Auth: map[string]string{"token": os.Getenv("ZIMA_KEY"), "device": os.Getenv("ZIMA_DEVICE")},
+				Auth: map[string]string{"token": zimaKey, "device": zimaDevice},
 			},
 		},
 	}
@@ -54,9 +69,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	repoConn := "postgres://test:test@127.0.0.1:5432/notify?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	repoConn := postgresDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +
@@ -69,7 +83,7 @@ func main() {
 	}
 	defer postgresRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
 
-	noSqlRepo, err := repo.NewNoSqlRepoFactory(ctx, "mongodb://admin:admin@localhost:27017", "logs")
+	noSqlRepo, err := repo.NewNoSqlRepoFactory(ctx, mongoDbURI, "logs")
 	if err != nil {
 		log.Fatalf("nosql initialization failed with error: %v", err)
 	}
@@ -83,7 +97,7 @@ func main() {
 	// 1) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались. Чтоб не получилось так, что из кафки возьмем сообщение и завершимся. Нужно обязательно чтоб отправка происходила.
 
 	// в случае с http сервером мы загоняли сервис в хендлер, здесь же мы загоняем сервис в kafkaConsumer
-	kafkaConsumer := handlers.NewConsumer([]string{"localhost:9092"}, "code", "for_notify", svc)
+	kafkaConsumer := handlers.NewConsumer([]string{kafkaURI}, "code", "for_notify", svc)
 
 	// Горутина для запуска и перезапуска Kafka consumer
 	go func() {

@@ -2,11 +2,8 @@ package users_handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
-	"oprosdom.ru/shared"
-	users_models "oprosdom.ru/core/internal/users/models"
 	users_service "oprosdom.ru/core/internal/users/service"
 )
 
@@ -20,14 +17,14 @@ func NewHandler(service users_service.UsersService) *Handler {
 	}
 }
 
-func replyError(w http.ResponseWriter, err error, publicErr string, statusCode int) {
-	// оригинальный err.Error() логируем в redis с ttl
-	// TODO
-	log.Println(err.Error())
-	w.WriteHeader(statusCode)
-	// отправлять error поле в json'e нет смысла, так как ошибка будет по status code определяться
-	json.NewEncoder(w).Encode(publicErr)
-}
+// func replyError(w http.ResponseWriter, err error, publicErr string, statusCode int) {
+// 	// оригинальный err.Error() логируем в redis с ttl
+// 	// TODO
+// 	log.Println(err.Error())
+// 	w.WriteHeader(statusCode)
+// 	// отправлять error поле в json'e нет смысла, так как ошибка будет по status code определяться
+// 	json.NewEncoder(w).Encode(publicErr)
+// }
 
 func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 
@@ -38,28 +35,28 @@ func (h *Handler) PhoneSend(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// парсим и наполняем unsafe структуру данными
-	var unsafePhoneSendReq users_models.UnsafePhoneSendReq
-	if err := json.NewDecoder(r.Body).Decode(&unsafePhoneSendReq); err != nil {
-		replyError(w, err, "incorrect_request", http.StatusBadRequest)
-		return
-	}
+	// // парсим и наполняем unsafe структуру данными
+	// var unsafePhoneSendReq users_models.UnsafePhoneSendReq
+	// if err := json.NewDecoder(r.Body).Decode(&unsafePhoneSendReq); err != nil {
+	// 	replyError(w, err, "incorrect_request", http.StatusBadRequest)
+	// 	return
+	// }
 
-	unsafePhoneSendReq.UserAgent = r.UserAgent()
-	unsafePhoneSendReq.Ip = shared.IpHttpGet(r)
+	// unsafePhoneSendReq.UserAgent = r.UserAgent()
+	// unsafePhoneSendReq.Ip = shared.IpHttpGet(r)
 
-	// проводим первичную валидацию, на выходе заполняем valid структуру и отдаем в сервисный слой (для дальнейшей бизнес-валидации, бизнес-логики и взаимодействия с репо)
-	validatedPhoneSendReq, err := unsafePhoneSendReq.Validate()
-	if err != nil {
-		replyError(w, err, "incorrect_phonesend", http.StatusBadRequest)
-		return
-	}
+	// // проводим первичную валидацию, на выходе заполняем valid структуру и отдаем в сервисный слой (для дальнейшей бизнес-валидации, бизнес-логики и взаимодействия с репо)
+	// validatedPhoneSendReq, err := unsafePhoneSendReq.Validate()
+	// if err != nil {
+	// 	replyError(w, err, "incorrect_phonesend", http.StatusBadRequest)
+	// 	return
+	// }
 
-	// service (там репо и бизнес)
-	if err := h.service.PhoneSend(r.Context(), validatedPhoneSendReq); err != nil {
-		replyError(w, err, "incorrect_phonesend_service", http.StatusInternalServerError)
-		return
-	}
+	// // service (там репо и бизнес)
+	// if err := h.service.PhoneSend(r.Context(), validatedPhoneSendReq); err != nil {
+	// 	replyError(w, err, "incorrect_phonesend_service", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// успех
 	w.WriteHeader(http.StatusCreated)
