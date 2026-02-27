@@ -8,8 +8,8 @@ import (
 
 type UnsafePhoneSendReq struct {
 	Phone     string `json:"phone"`
-	UserAgent string // в phonesend используется для rate лимита
-	Ip        string // в phonesend используется для rate лимита
+	UserAgent string `swaggerignore:"true"` // в phonesend используется для rate лимита
+	Ip        string `swaggerignore:"true"` // в phonesend используется для rate лимита
 }
 
 func (u *UnsafePhoneSendReq) Validate() (*ValidatedPhoneSendReq, error) {
@@ -37,7 +37,7 @@ func (u *UnsafePhoneSendReq) Validate() (*ValidatedPhoneSendReq, error) {
 }
 
 type ValidatedPhoneSendReq struct {
-	Phone     string // в E.164
+	Phone string // в E.164
 	//PhoneType string // mobile / landline / unknown
 	UserAgent string // уже очищенный и обрезанный если len > 512
 	IP        net.IP // проверенный net.IP (в нашем случае через nginx получаем x-real-ip)

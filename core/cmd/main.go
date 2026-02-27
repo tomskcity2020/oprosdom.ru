@@ -1,8 +1,20 @@
+// @title           Core API
+// @version         1.0
+// @description     Аутентификация и выдача токенов осуществляется /auth
+// @host            localhost:8082
+// @BasePath        /api/v1
+// @schemes         http
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name auth
+
 package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,23 +22,49 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
-	// "oprosdom.ru/core/internal/dz/internal/handlers"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+	_ "oprosdom.ru/swagger/core"
+
+	polls_handlers "oprosdom.ru/core/internal/polls/handlers"
+	polls_repo "oprosdom.ru/core/internal/polls/repo"
+	polls_service "oprosdom.ru/core/internal/polls/service"
 	users_handlers "oprosdom.ru/core/internal/users/handlers"
 	users_repo "oprosdom.ru/core/internal/users/repo"
 	users_service "oprosdom.ru/core/internal/users/service"
 )
+
+var publicKey *rsa.PublicKey
+var healthOK = []byte("OK\n") // заранее подготовленный ответ для health проверки k8s
+
+// TODO
+// func init() {
+//     // загрузка ключа при старте
+//     publicKey = initPublicKey()
+// }
 
 func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	if err := initPublicKey(); err != nil {
+		log.Fatalf("Failed to initialize public key: %v", err)
+	}
+
+	usersDbURI := os.Getenv("USERS_DB_URI")
+	pollsDbURI := os.Getenv("POLLS_DB_URI")
+
+	if usersDbURI == "" || pollsDbURI == "" {
+		log.Fatal("Не заданы переменные окружения USERS_DB_URI или POLLS_DB_URI")
+	}
+
 	//////////////////////////////////////// USERS INITIALIZATION ////////////////////////////////////////
 
-	userRepoConn := "postgres://test:test@127.0.0.1:5432/users?" +
-		"sslmode=disable&" +
-		"pool_min_conns=5&" +
+	userRepoConn := usersDbURI +
+		"&pool_min_conns=5&" +
 		"pool_max_conns=25&" +
 		"pool_max_conn_lifetime=30m&" +
 		"pool_max_conn_lifetime_jitter=5m&" +
@@ -44,38 +82,54 @@ func main() {
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	//////////////////////////////////////// POLLS INITIALIZATION ////////////////////////////////////////
+
+	pollsRepoConn := pollsDbURI +
+		"&pool_min_conns=5&" +
+		"pool_max_conns=25&" +
+		"pool_max_conn_lifetime=30m&" +
+		"pool_max_conn_lifetime_jitter=5m&" +
+		"pool_max_conn_idle_time=15m&" +
+		"pool_health_check_period=1m"
+
+	pollsRepo, err := polls_repo.NewRepoFactory(ctx, pollsRepoConn)
+	if err != nil {
+		log.Fatalf("polls repo initialization failed with error: %v", err)
+	}
+	defer pollsRepo.Close() // это важно чтоб при закрытии разрывать соединения с базой иначе при многократном рестарте приложения лимит подключений к postgresql иссякнет и получим too many connections
+
+	pollsService := polls_service.NewServiceFactory(pollsRepo)
+	pollsHandler := polls_handlers.NewHandler(pollsService)
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	// предусмотреть контекст!
 	// 1) если клиент стопнул в браузере выполнение, то нужно отменять операции -> это предусмотрено http сервером, но нужно обрабатывать  это событие в хендлерах
 	// 2) реализовать graceful shutdown так, чтоб на начатые запросы завершались, а новые не принимались
 
-	// curl -X POST "http://127.0.0.1:8080/api/member" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
+	// curl -X POST "http://127.0.0.1:8082/api/poll/vote" -H "Content-Type: application/json" -d '{"poll_id":1,"vote":"za"}' -b cookies.txt
 	// curl -X POST "http://127.0.0.1:8080/api/kvartira" -H "Content-Type: application/json" -d '{"number":"115","komnat":2}'
 	// curl -X PUT "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1" -H "Content-Type: application/json" -d '{"name":"Иван Иванов","phone":"+79991234567","community":5}'
 	// curl -X PUT "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4" -H "Content-Type: application/json" -d '{"number":"12","komnat":3}'
-	// curl -X GET "http://127.0.0.1:8080/api/members" -H "Content-Type: application/json"
-	// curl -X GET "http://127.0.0.1:8080/api/kvartiras" -H "Content-Type: application/json"
-	// curl -X GET "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
-	// curl -X GET "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
-	// curl -X DELETE "http://127.0.0.1:8080/api/member/09770685-ae8a-4e68-9751-50bba1d846f1"
-	// curl -X DELETE "http://127.0.0.1:8080/api/kvartira/1f970b7b-679c-4c7d-a252-3ef370d439f4"
-	// curl -X POST "http://127.0.0.1:8080/api/member/b406690d-018a-4fb5-b1b7-70946b92432e/paydebt" -H "Content-Type: application/json" -d '{"kvartira_id":"f983de63-e4f3-483a-b9a2-6e1f3ea960b7","amount":"17500.55"}'
+	// curl -X GET "http://127.0.0.1:8082/api/v1/polls/stat" -H "Content-Type: application/json" -b cookies.txt
 
 	r := mux.NewRouter()
-	r.HandleFunc("/api/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
-	// verification/phonecode
-	// verification/bankcard
-	// r.HandleFunc("/api/kvartira", h.KvartiraAdd).Methods("POST")
-	// r.HandleFunc("/api/member/{id}", h.MemberUpdate).Methods("PUT")
-	// r.HandleFunc("/api/kvartira/{id}", h.KvartiraUpdate).Methods("PUT")
-	// r.HandleFunc("/api/members", h.MembersGet).Methods("GET")
-	// r.HandleFunc("/api/kvartiras", h.KvartirasGet).Methods("GET")
-	// r.HandleFunc("/api/member/{id}", h.MemberGet).Methods("GET")
-	// r.HandleFunc("/api/kvartira/{id}", h.KvartiraGet).Methods("GET")
-	// r.HandleFunc("/api/{mk}/{id}", h.RemoveById).Methods("DELETE")
-	// r.HandleFunc("/api/member/{id}/paydebt", h.PayDebt).Methods("POST")
+
+	requireJwt := r.PathPrefix("/api/v1").Subrouter()
+	requireJwt.Use(jwtMiddleware) // это применение промежуточного хендлера до вызова основного. Можем добавлять промеж хендлеры цепочкой
+
+	requireJwt.Use(jwtMiddleware)
+	requireJwt.HandleFunc("/users/verification/phone", usersHandler.PhoneSend).Methods("POST")
+	requireJwt.HandleFunc("/polls", pollsHandler.GetPolls).Methods("GET")
+	requireJwt.HandleFunc("/polls/stat", pollsHandler.PollStats).Methods("GET")
+	requireJwt.HandleFunc("/poll/vote", pollsHandler.Vote).Methods("POST")
+
+	// вне middleware
+	r.HandleFunc("/health", healthHandler).Methods("GET") // HandleFunc (задает точный путь)
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":8082",
 		Handler: r,
 		// таймауты read/write тут не указываем потому что у нас вероятно будут вебсокеты на этом же порту, поэтому будем другими механизмами таймауты отслеживать
 		// хотя нужно изучить вопрос, ws это же не http, а поверх http
@@ -115,32 +169,67 @@ func main() {
 
 }
 
-// package main
+func initPublicKey() error {
+	pubKeyPEM := `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwNoGHw2jZBJp77npZDc3
+uxM/uzEq8Gd4myO9+wQG8VeNlITOoXWBx77LRe2TXZQYyRc9jYudW3xH2WvZ49m2
+w8hnmCfwRA+tOkdzoosLnQ1dxom+kVbIXiDIefmmnoXhvnXEg9jAeB+csSnmyD+Q
+vsV1/U13/O7iRcnUxU3mkF5knEPwQ1GXUH9Aiv5YJC2JcEegsAq2hLCosd1eCytg
+A/9FMmyA7qWAQHlX3jai2p91SOtO6OROEmZ3MeaxTv0T4vforyqy+cPNaCS6GC3U
+Zt8jqQg7y5HEXpvvb60fp3hYge5FDa8Cug0wzMgitUTxZ8y4VtUofPuHCjB7YgBS
++QIDAQAB
+-----END PUBLIC KEY-----`
+	// pem.Decode отдельно делать не нужно, потому что под капотом ParseRSAPublicKeyFromPEM тот же pem.decode
+	pub, err := jwt.ParseRSAPublicKeyFromPEM([]byte(pubKeyPEM))
+	if err != nil {
+		return fmt.Errorf("failed to parse public key: %w", err)
+	}
+	publicKey = pub
+	log.Println("public key init success")
+	return nil
+}
 
-// import (
-// 	"log"
-// 	"net/http"
+func jwtMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("auth")
+		if err != nil {
+			// описание не возвращаем, в этом нет смысла в нашем случае
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-// 	"github.com/gorilla/mux"
+		token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+			// если приведение к типу не сработает, то будет ошибка. Обязательная проверка иначе могут в alg токена прислать что угодно
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, errors.New("unexpected jwt signing alg")
+			}
+			return publicKey, nil
+		})
 
-// 	core "oprosdom.ru/core/internal"
-// )
+		// если токен не прошел проверку подписи или истек - token.Valud будет false
+		if err != nil || !token.Valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-// func main() {
+		// вообще считается антипаттерном, но пока не нашел способ как из мидлвары передать в основной хендлер
 
-// 	// 	Вкратце схема такая:
-// 	// 1) вызываем rpc обработчик общий
-// 	// 2) он в зависимости от json-rpc метода выбирает спец обработчик и назначает ему соответствующий части приложения репозиторий
-// 	// 3) далее спец обработчик парсит и создает дто и проверяем
-// 	// 4) отдаем дто в сервисный слой
-// 	// 5) сервисный слой вызывает репозиторий и бизнес-логику
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if jti, exists := claims["jti"].(string); exists {
+				ctx := context.WithValue(r.Context(), "jti", jti)
+				r = r.WithContext(ctx)
+			}
+		}
 
-// 	rpc_handler := core.NewJsonRpcHandler()
+		next.ServeHTTP(w, r)
+	})
+}
 
-// 	r := mux.NewRouter()
-// 	r.HandleFunc("/rpc", rpc_handler.RequestResponse).Methods("POST")
-
-// 	log.Println("JSON-RPC сервер запущен на порте 8080.")
-// 	log.Fatal(http.ListenAndServe(":8080", r))
-
-// }
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(healthOK)
+}

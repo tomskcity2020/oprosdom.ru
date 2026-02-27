@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"net"
 	"net/http"
 )
 
@@ -13,10 +14,24 @@ import (
 // Обрабатываем только X-Real-IP, в конфиге nginx обязательно нужно устанавливать его, чтоб не получить поддельный X-Real-IP
 
 func IpHttpGet(r *http.Request) string {
-	// проверка на пустой x-real-ip здесь избыточна, просто уйдет пустая строка, дальше на валидации будет ошибка
-	return r.Header.Get("X-Real-IP")
+	// nginx передаст x-real-ip
+	ip := r.Header.Get("X-Real-IP")
+	if ip != "" {
+		return ip
+	}
 
-	// ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-	// return ip
+	// но чтоб нам запускать сваггер в dev среде (при прямом обращении к микросервису) делаем передачу remoteAddr иначе если этого не делать будет ошибка
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		// Не можем распарсить RemoteAddr, возвращаем пустую строку
+		return ""
+	}
+
+	if host == "127.0.0.1" || host == "::1" {
+		return host
+	}
+
+	// во всех остальных случаях возвращаем пустую строку, на валидации завалится
+	return ""
 
 }
