@@ -31,6 +31,7 @@ func main() {
 
 	redisAddr := os.Getenv("REDIS_URI")
 
+	// TODO возможна коллизия с именем пакета, нужно заменить redis на ramRepo
 	redis, err := repo.NewRamRepoFactory(ctx, redisAddr)
 	if err != nil {
 		log.Fatalf("redis initialization failed with error: %v", err)

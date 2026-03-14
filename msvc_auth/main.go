@@ -46,6 +46,8 @@ func main() {
 	kafkaURI := os.Getenv("KAFKA_URI")
 	msvcAccessURI := os.Getenv("MSVC_ACCESS_URI")
 
+	// TODO добавить проверку на заданные env
+
 	keyPath := os.Getenv("PRIVATE_KEY_PATH")
 	if keyPath == "" {
 		keyPath = "private.pem" // fallback для локальной разработки
